@@ -15,7 +15,7 @@ def patch_get_collection(connection):
         return collection
 
     if not hasattr(connection, "_djdt_cursor"):
-        connection._djdt_logger = None
+        connection._panel = None
         connection.get_collection = types.MethodType(get_collection, connection)
 
 

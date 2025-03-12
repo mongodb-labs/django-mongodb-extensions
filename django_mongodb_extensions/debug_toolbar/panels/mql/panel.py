@@ -83,11 +83,11 @@ class MQLPanel(Panel):
         # This is thread-safe because database connections are thread-local.
         for connection in connections.all():
             patch_get_collection(connection)
-            connection._djdt_logger = self
+            connection._panel = self
 
     def disable_instrumentation(self):
         for connection in connections.all():
-            connection._djdt_logger = None
+            connection._panel = None
 
     def generate_stats(self, request, response):
         self.record_stats(
