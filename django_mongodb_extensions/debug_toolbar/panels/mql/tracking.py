@@ -20,6 +20,19 @@ def patch_get_collection(connection):
         connection.get_collection = types.MethodType(get_collection, connection)
 
 
+def patch_wrapper_with_mixin(base_wrapper, mixin):
+    class DjDTCursorWrapper(mixin, base_wrapper):
+        pass
+
+    return DjDTCursorWrapper
+
+
+class DjDTCursorWrapperMixin:
+    def __init__(self, cursor, db, logger):
+        super().__init__(cursor, db)
+        self.logger = logger
+
+
 class DebugToolbarWrapper(OperationDebugWrapper):
     def log(self, op, duration, args, kwargs=None):
         msg = "(%.3f) %s"
