@@ -12,10 +12,11 @@ def patch_get_collection(connection):
     def get_collection(self, name, **kwargs):
         collection = Collection(self.database, name, **kwargs)
         collection = DebugToolbarWrapper(self, collection)
+        collection._djdt_collection = self
         return collection
 
-    if not hasattr(connection, "_djdt_cursor"):
-        connection._panel = None
+    if not hasattr(connection, "_djdt_collection"):
+        connection._djdt_panel = None
         connection.get_collection = types.MethodType(get_collection, connection)
 
 
