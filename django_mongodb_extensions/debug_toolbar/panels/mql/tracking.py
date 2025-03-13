@@ -12,12 +12,9 @@ def patch_get_collection(connection):
     def get_collection(self, name, **kwargs):
         collection = Collection(self.database, name, **kwargs)
         collection = DebugToolbarWrapper(self, collection)
-        collection._djdt_collection = self
         return collection
 
-    if not hasattr(connection, "_djdt_collection"):
-        connection._djdt_panel = None
-        connection.get_collection = types.MethodType(get_collection, connection)
+    connection.get_collection = types.MethodType(get_collection, connection)
 
 
 def patch_wrapper_with_mixin(base_wrapper, mixin):
