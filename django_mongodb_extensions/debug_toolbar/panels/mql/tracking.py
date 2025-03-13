@@ -2,10 +2,8 @@ import types
 
 from django.conf import settings
 from django.db.backends.utils import logger
-
-
-from pymongo.collection import Collection
 from django_mongodb_backend.utils import OperationDebugWrapper
+from pymongo.collection import Collection
 
 
 def patch_get_collection(connection):
