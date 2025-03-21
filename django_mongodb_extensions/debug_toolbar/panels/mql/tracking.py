@@ -26,10 +26,10 @@ class DebugToolbarWrapper(OperationDebugWrapper):
 
     def __init__(self, db, collection, logger):
         super().__init__(db, collection)
-        self.collection_name = collection.name
         self.logger = logger
 
     def log(self, op, duration, args, kwargs=None):
+        args = ", ".join(repr(arg) for arg in args)
         operation = f"db.{self.collection_name}{op}({args})"
         if self.logger:
             self.logger._queries.append(
