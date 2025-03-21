@@ -26,7 +26,6 @@ class DebugToolbarWrapper(OperationDebugWrapper):
 
     def __init__(self, db, collection, logger):
         super().__init__(db, collection)
-        self.collection_name = f"{collection.name}."
         self.logger = logger
 
     def log(self, op, duration, args, kwargs=None):
