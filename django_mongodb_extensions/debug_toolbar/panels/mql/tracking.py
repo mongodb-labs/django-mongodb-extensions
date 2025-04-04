@@ -34,6 +34,7 @@ class DebugToolbarWrapper(OperationDebugWrapper):
         if self.logger:
             self.logger._queries.append(
                 {
+                    "alias": self.db.alias,
                     "sql": operation,
                     "time": "%.3f" % duration,
                 }
