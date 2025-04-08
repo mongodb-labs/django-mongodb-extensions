@@ -23,18 +23,18 @@
     <colgroup>
       <col>
       <col>
+      {% comment %}<col>{% endcomment %}
       <col>
-      <col class="djdt-width-30">
       <col>
-      <col>
+      {% comment %}<col>{% endcomment %}
     </colgroup>
     <thead>
       <tr>
         <th></th>
         <th colspan="2">{% translate "Query" %}</th>
-        <th>{% translate "Timeline" %}</th>
+        {% comment %}<th>{% translate "Timeline" %}</th>{% endcomment %}
         <th>{% translate "Time (ms)" %}</th>
-        <th>{% translate "Action" %}</th>
+        {% comment %}<th>{% translate "Action" %}</th>{% endcomment %}
       </tr>
     </thead>
     <tbody>
@@ -59,6 +59,7 @@
               </strong>
             {% endif %}
           </td>
+          {% comment %}
           <td>
             <svg class="djDebugLineChart{% if query.is_slow %} djDebugLineChartWarning{% endif %}{% if query.in_trans %} djDebugLineChartInTransaction{% endif %}" xmlns="http://www.w3.org/2000/svg" viewbox="0 0 100 5" preserveAspectRatio="none" aria-label="{{ query.width_ratio }}%">
               <rect x="{{ query.start_offset|unlocalize }}" y="0" height="5" width="{{ query.width_ratio|unlocalize }}" fill="{{ query.trace_color }}" />
@@ -70,9 +71,11 @@
               {% endif %}
             </svg>
           </td>
+          {% endcomment %}
           <td class="djdt-time">
             {{ query.duration|floatformat:"2" }}
           </td>
+          {% comment %}
           <td class="djdt-actions">
             {% if query.params %}
               {% if query.is_select %}
@@ -87,6 +90,7 @@
               {% endif %}
             {% endif %}
           </td>
+          {% endcomment %}
         </tr>
         <tr class="djUnselected {% if query.is_slow %} djDebugRowWarning{% endif %} djToggleDetails_{{ forloop.counter }}" id="sqlDetails_{{ forloop.counter }}">
           <td colspan="2"></td>

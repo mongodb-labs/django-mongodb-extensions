@@ -36,7 +36,7 @@ class DebugToolbarWrapper(OperationDebugWrapper):
                 {
                     "alias": self.db.alias,
                     "sql": operation,
-                    "time": "%.3f" % duration,
+                    "duration": "%.3f" % duration,
                 }
             )
             self.logger._databases[self.db.alias] = {
