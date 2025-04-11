@@ -58,8 +58,6 @@ class MQLPanel(SQLPanel):
     def generate_stats(self, request, response):
         self.record_stats(
             {
-                "databases": sorted(self._databases.items()),
                 "queries": self._queries,
-                "sql_time": self._sql_time,
             }
         )
