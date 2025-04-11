@@ -32,10 +32,12 @@ class DebugToolbarWrapper(OperationDebugWrapper):
         args = ", ".join(repr(arg) for arg in args)
         operation = f"db.{self.collection_name}{op}({args})"
         if self.logger:
+            self.logger._sql_time += duration
             self.logger._queries.append(
                 {
+                    "alias": self.db.alias,
                     "sql": operation,
-                    "time": "%.3f" % duration,
+                    "duration": "%.3f" % duration,
                 }
             )
             self.logger._databases[self.db.alias] = {
