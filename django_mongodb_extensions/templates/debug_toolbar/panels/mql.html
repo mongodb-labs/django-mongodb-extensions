@@ -24,17 +24,12 @@
       <col>
       <col>
       <col>
-      <col class="djdt-width-30">
-      <col>
-      <col>
     </colgroup>
     <thead>
       <tr>
         <th></th>
         <th colspan="2">{% trans "Query" %}</th>
-        <th>{% trans "Timeline" %}</th>
         <th>{% trans "Time (ms)" %}</th>
-        <th>{% trans "Action" %}</th>
       </tr>
     </thead>
     <tbody>
@@ -59,33 +54,8 @@
               </strong>
             {% endif %}
           </td>
-          <td>
-            <svg class="djDebugLineChart{% if query.is_slow %} djDebugLineChartWarning{% endif %}{% if query.in_trans %} djDebugLineChartInTransaction{% endif %}" xmlns="http://www.w3.org/2000/svg" viewbox="0 0 100 5" preserveAspectRatio="none" aria-label="{{ query.width_ratio }}%">
-              <rect x="{{ query.start_offset|unlocalize }}" y="0" height="5" width="{{ query.width_ratio|unlocalize }}" fill="{{ query.trace_color }}" />
-              {% if query.starts_trans %}
-                <line x1="{{ query.start_offset|unlocalize }}" y1="0" x2="{{ query.start_offset|unlocalize }}" y2="5" />
-              {% endif %}
-              {% if query.ends_trans %}
-                <line x1="{{ query.end_offset|unlocalize }}" y1="0" x2="{{ query.end_offset|unlocalize }}" y2="5" />
-              {% endif %}
-            </svg>
-          </td>
           <td class="djdt-time">
             {{ query.duration|floatformat:"2" }}
-          </td>
-          <td class="djdt-actions">
-            {% if query.params %}
-              {% if query.is_select %}
-                <form method="post">
-                  {{ query.form.as_div }}
-                  <button formaction="{% url 'djdt:sql_select' %}" class="remoteCall">Sel</button>
-                  <button formaction="{% url 'djdt:sql_explain' %}" class="remoteCall">Expl</button>
-                  {% if query.vendor == 'mysql' %}
-                    <button formaction="{% url 'djdt:sql_profile' %}" class="remoteCall">Prof</button>
-                  {% endif %}
-                </form>
-              {% endif %}
-            {% endif %}
           </td>
         </tr>
         <tr class="djUnselected {% if query.is_slow %} djDebugRowWarning{% endif %} djToggleDetails_{{ forloop.counter }}" id="sqlDetails_{{ forloop.counter }}">
