@@ -5,3 +5,6 @@ build-backend = "hatchling.build"
 [project]
 name = "django-mongodb-extensions"
 version = "0.1.0"
+dependencies = [
+    "django-mongodb-backend",
+]
