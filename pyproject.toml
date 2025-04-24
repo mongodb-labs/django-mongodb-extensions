@@ -8,3 +8,4 @@ version = "0.1.0"
 dependencies = [
     "django-mongodb-backend",
 ]
+requires-python = ">=3.9"
