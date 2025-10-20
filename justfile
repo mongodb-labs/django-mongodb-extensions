@@ -2,7 +2,7 @@ default:
     echo 'Hello, world!'
 
 test:
-    echo 'TODO'
+    uvx pytest .
 
 lint:
     uvx pre-commit run --all-files --hook-stage manual
