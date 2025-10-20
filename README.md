@@ -1,3 +1,3 @@
 # django-mongodb-extensions
 
-Extensions for Django-MongoDB-Backend
+Extensions for Django MongoDB Backend
