@@ -27,6 +27,8 @@ jobs:
   make_dist:
     name: Make Dist
     runs-on: macos-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v5
         with:
@@ -61,6 +63,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: [make_dist]
     name: Download Dist
+    permissions:
+      contents: read
     steps:
       - name: Download all workflow run artifacts
         uses: actions/download-artifact@v5
