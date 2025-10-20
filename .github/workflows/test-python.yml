@@ -13,6 +13,9 @@ defaults:
   run:
     shell: bash -eux {0}
 
+permissions:
+  contents: read
+
 env:
   MIN_PYTHON: "3.9"
   MIN_MONGODB: "4.2"
