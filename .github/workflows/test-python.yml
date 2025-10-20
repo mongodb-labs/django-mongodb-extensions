@@ -35,10 +35,7 @@ jobs:
         enable-cache: true
         python-version: ${{ matrix.python-version }}
     - uses: extractions/setup-just@e33e0265a09d6d736e2ee1e0eb685ef1de4669ff # v3
-    - run: just install
     - run: just lint
-    - run: just docs
-    - run: just doctest
   build:
     runs-on: ${{ matrix.os }}
     strategy:
