@@ -1,5 +1,7 @@
 import types
+import uuid
 
+from debug_toolbar.utils import get_stack_trace
 from django_mongodb_backend.utils import OperationDebugWrapper
 from pymongo.collection import Collection
 
@@ -38,6 +40,8 @@ class DebugToolbarWrapper(OperationDebugWrapper):
                     "alias": self.db.alias,
                     "sql": operation,
                     "duration": "%.3f" % duration,
+                    "djdt_query_id": uuid.uuid4().hex,
+                    "stacktrace": get_stack_trace(),
                 }
             )
             self.logger._databases[self.db.alias] = {
