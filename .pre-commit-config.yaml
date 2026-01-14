@@ -14,3 +14,10 @@ repos:
     -   id: ruff
         args: [ --fix ]
     -   id: ruff-format
+
+- repo: https://github.com/rtts/djhtml
+  rev: '3.0.7'
+  hooks:
+    - id: djhtml
+      entry: djhtml --tabwidth 2
+      files: django_mongodb_extensions/templates/debug_toolbar/panels/mql.html
