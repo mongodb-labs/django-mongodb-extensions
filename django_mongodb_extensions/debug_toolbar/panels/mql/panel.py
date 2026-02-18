@@ -1,44 +1,88 @@
+import uuid
+from collections import defaultdict
+
 from django.db import connections
+from django.db.backends.signals import connection_created
+from django.template.loader import render_to_string
+from django.urls import path
+from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _, ngettext
 
+from debug_toolbar import settings as dt_settings
+from debug_toolbar.forms import SignedDataForm
+from debug_toolbar.panels.sql.forms import SQLSelectForm
 from debug_toolbar.panels.sql.panel import SQLPanel
-from django_mongodb_extensions.debug_toolbar.panels.mql.tracking import (
+from debug_toolbar.panels.sql.utils import contrasting_color_generator
+from debug_toolbar.utils import render_stacktrace
+from django_mongodb_extensions.debug_toolbar.panels.mql.utils import (
+    MQL_PANEL_ID,
+    hex_to_rgb,
+    is_read_operation,
     patch_get_collection,
+    patch_new_connection,
+    process_query_groups,
+    query_key_duplicate,
+    query_key_similar,
 )
+from django_mongodb_extensions.debug_toolbar.panels.mql import views
+
+
+connection_created.connect(patch_new_connection)
 
 
 class MQLPanel(SQLPanel):
-    """
-    Panel that displays information about the MQL queries run while processing
-    the request.
-    """
+    panel_id = MQL_PANEL_ID
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._sql_time = 0
+        self._mql_time = 0
         self._queries = []
         self._databases = {}
+
+    def record(self, **kwargs):
+        kwargs["djdt_query_id"] = uuid.uuid4().hex
+        self._queries.append(kwargs)
+        alias = kwargs["alias"]
+        if alias not in self._databases:
+            self._databases[alias] = {
+                "time_spent": kwargs["duration"],
+                "num_queries": 1,
+            }
+        else:
+            self._databases[alias]["time_spent"] += kwargs["duration"]
+            self._databases[alias]["num_queries"] += 1
+        self._mql_time += kwargs["duration"]
 
     # Implement Panel API
 
     nav_title = _("MQL")
     template = "debug_toolbar/panels/mql.html"
 
+    @classmethod
+    def get_urls(cls):
+        return [
+            path("mql_select/", views.mql_select, name="mql_select"),
+            path("mql_explain/", views.mql_explain, name="mql_explain"),
+        ]
+
     @property
     def nav_subtitle(self):
-        query_count = len(self._queries)
+        stats = self.get_stats()
+        query_count = len(stats.get("queries", []))
         return ngettext(
-            "%(query_count)d query in %(sql_time).2fms",
-            "%(query_count)d queries in %(sql_time).2fms",
+            "%(query_count)d query in %(mql_time).2fms",
+            "%(query_count)d queries in %(mql_time).2fms",
             query_count,
         ) % {
             "query_count": query_count,
-            "sql_time": self._sql_time,
+            "mql_time": stats.get("mql_time"),
         }
 
     @property
     def title(self):
-        count = len(self._databases)
+        stats = self.get_stats()
+        databases = stats.get("databases", {}) if stats else {}
+        count = len(databases)
         return ngettext(
             "MQL queries from %(count)d connection",
             "MQL queries from %(count)d connections",
@@ -46,7 +90,6 @@ class MQLPanel(SQLPanel):
         ) % {"count": count}
 
     def enable_instrumentation(self):
-        # This is thread-safe because database connections are thread-local.
         for connection in connections.all():
             patch_get_collection(connection)
             connection._djdt_logger = self
@@ -56,8 +99,94 @@ class MQLPanel(SQLPanel):
             connection._djdt_logger = None
 
     def generate_stats(self, request, response):
+        similar_query_groups = defaultdict(list)
+        duplicate_query_groups = defaultdict(list)
+
+        if self._queries:
+            sql_warning_threshold = dt_settings.get_config()["SQL_WARNING_THRESHOLD"]
+
+            db_colors = contrasting_color_generator()
+            for db in self._databases.values():
+                hex_color = next(db_colors)
+                db["rgb_color"] = hex_to_rgb(hex_color)
+
+            width_ratio_tally = 0
+
+            for query in self._queries:
+                alias = query["alias"]
+
+                try:
+                    sim_key = query_key_similar(query)
+                    similar_query_groups[(alias, sim_key)].append(query)
+                except Exception:
+                    pass
+
+                try:
+                    dup_key = query_key_duplicate(query)
+                    duplicate_query_groups[(alias, dup_key)].append(query)
+                except Exception:
+                    pass
+
+                query["is_slow"] = query["duration"] > sql_warning_threshold
+
+                operation = query.get("mql_operation", "")
+                query["is_select"] = is_read_operation(operation)
+
+                query["rgb_color"] = self._databases[alias]["rgb_color"]
+                try:
+                    query["width_ratio"] = (query["duration"] / self._mql_time) * 100
+                except ZeroDivisionError:
+                    query["width_ratio"] = 0
+                query["start_offset"] = width_ratio_tally
+                query["end_offset"] = query["width_ratio"] + query["start_offset"]
+                width_ratio_tally += query["width_ratio"]
+
+        group_colors = contrasting_color_generator()
+        process_query_groups(
+            similar_query_groups, self._databases, group_colors, "similar"
+        )
+        process_query_groups(
+            duplicate_query_groups, self._databases, group_colors, "duplicate"
+        )
+
         self.record_stats(
             {
+                "databases": sorted(
+                    self._databases.items(), key=lambda x: -x[1]["time_spent"]
+                ),
                 "queries": self._queries,
+                "mql_time": self._mql_time,
             }
         )
+
+    def generate_server_timing(self, request, response):
+        stats = self.get_stats()
+        title = f"MQL {len(stats.get('queries', []))} queries"
+        value = stats.get("mql_time", 0)
+        self.record_server_timing("mql_time", title, value)
+
+    @property
+    def has_content(self):
+        return bool(self._queries)
+
+    @cached_property
+    def content(self):
+        stats = self.get_stats()
+        colors = contrasting_color_generator()
+        trace_colors = defaultdict(lambda: next(colors))
+        for query in stats.get("queries", []):
+            query["mql"] = query.get("mql", "")
+            query["params"] = True
+            query["form"] = SignedDataForm(
+                auto_id=None,
+                initial=SQLSelectForm(
+                    initial={
+                        "djdt_query_id": query["djdt_query_id"],
+                        "request_id": self.toolbar.request_id,
+                    }
+                ).initial,
+            )
+            query["stacktrace"] = render_stacktrace(query["stacktrace"])
+            query["trace_color"] = trace_colors[query["stacktrace"]]
+
+        return render_to_string(self.template, stats)

@@ -1,0 +1,40 @@
+{% load i18n %}
+<div class="djDebugPanelTitle">
+  <h3>{% translate "MQL selected" %}</h3>
+  <button type="button" class="djDebugClose">»</button>
+</div>
+<div class="djDebugPanelContent">
+  <div class="djdt-scroll">
+    <dl>
+      <dt>{% translate "Executed MQL" %}</dt>
+      <dd><pre style="margin: 0; white-space: pre-wrap; word-wrap: break-word;">{{ mql }}</pre></dd>
+      <dt>{% translate "Time" %}</dt>
+      <dd>{{ duration }} ms</dd>
+      <dt>{% translate "Database" %}</dt>
+      <dd>{{ alias }}</dd>
+    </dl>
+    {% if result %}
+      <h4>{% translate "MQL Query Results" %}</h4>
+      <table>
+        <thead>
+          <tr>
+            {% for h in headers %}
+              <th>{{ h|upper }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in result %}
+            <tr>
+              {% for column in row %}
+                <td>{{ column|escape }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p>{% translate "Empty set" %}</p>
+    {% endif %}
+  </div>
+</div>

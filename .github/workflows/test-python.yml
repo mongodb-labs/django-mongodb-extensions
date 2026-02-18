@@ -45,7 +45,7 @@ jobs:
       fail-fast: false
     name: CPython ${{ matrix.python-version }}-${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -61,12 +61,20 @@ jobs:
         with:
           mongodb-version: ${{ env.MAX_MONGODB }}
           mongodb-replica-set: test-rs
-      - run: just test
+      - run: just coverage
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          flags: unittests
+          name: codecov-${{ matrix.python-version }}
+          fail_ci_if_error: false
 
   build-min:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
         persist-credentials: false
         fetch-depth: 0
@@ -89,4 +97,12 @@ jobs:
     - name: Run unit tests with minimum dependency versions
       run: |
         uv sync --python=${MIN_PYTHON} --resolution=lowest-direct
-        just test
+        just coverage
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage.xml
+        flags: minimum-versions
+        name: codecov-min-python
+        fail_ci_if_error: false

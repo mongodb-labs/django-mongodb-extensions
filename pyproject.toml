@@ -5,7 +5,52 @@ build-backend = "hatchling.build"
 [project]
 name = "django-mongodb-extensions"
 version = "0.1.0.a2"
-description = "Extensions for Django MongoDB Backend"
+description = "Django MongoDB Extensions"
 readme = "README.md"
 license = { file="LICENSE" }
 requires-python = ">=3.10"
+dependencies = [
+    "django-mongodb-backend",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "django>=4.2",
+    "django-debug-toolbar>=4.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "-ra",
+]
+
+[tool.coverage.run]
+source = ["django_mongodb_extensions"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]
+show_missing = true
+precision = 2
+
+[tool.coverage.html]
+directory = "htmlcov"
