@@ -4,15 +4,10 @@ import pprint
 import types
 import weakref
 from collections import defaultdict
-from collections.abc import Generator
-from dataclasses import dataclass
-from typing import Any
 
 from bson import json_util
-from debug_toolbar.forms import SignedDataForm
 from debug_toolbar.utils import get_stack_trace
 from django.conf import settings
-from django.http import HttpRequest
 from django_mongodb_backend.utils import OperationDebugWrapper
 
 
@@ -29,6 +24,10 @@ MQL_PANEL_ID = "MQLPanel"
 # The setting is read by the get_max_select_results() function below.
 DEFAULT_MAX_SELECT_RESULTS = 100
 
+# Queries slower than this threshold (in milliseconds) are highlighted in the
+# debug toolbar. Customize via DJDT_MQL_WARNING_THRESHOLD in Django settings.
+DEFAULT_MQL_WARNING_THRESHOLD = 500
+
 
 # Read operations used by django-mongodb-backend.
 # These are the only MongoDB read operations that django-mongodb-backend actually
@@ -41,22 +40,33 @@ MQL_READ_OPERATIONS = {
 
 # Track which connections have been patched to avoid double-patching
 # Use WeakSet to automatically clean up references to closed connections
-_patched_connections: weakref.WeakSet = weakref.WeakSet()
+_patched_connections = weakref.WeakSet()
 
 
-@dataclass
 class QueryParts:
     """Structured container for parsed query components."""
 
-    query_dict: dict[str, Any]
-    alias: str
-    mql_string: str
-    connection: Any
-    db: Any
-    collection: Any
-    collection_name: str
-    operation: str
-    args_list: list[Any]
+    def __init__(
+        self,
+        query_dict,
+        alias,
+        mql_string,
+        connection,
+        db,
+        collection,
+        collection_name,
+        operation,
+        args_list,
+    ):
+        self.query_dict = query_dict
+        self.alias = alias
+        self.mql_string = mql_string
+        self.connection = connection
+        self.db = db
+        self.collection = collection
+        self.collection_name = collection_name
+        self.operation = operation
+        self.args_list = args_list
 
 
 class DebugToolbarWrapper(OperationDebugWrapper):
@@ -89,9 +99,7 @@ class DebugToolbarWrapper(OperationDebugWrapper):
             )
 
 
-def convert_documents_to_table(
-    documents: list[dict[str, Any]],
-) -> tuple[list[list[str]], list[str]]:
+def convert_documents_to_table(documents):
     """Convert MongoDB documents to table format with columns. Used in the debug
     toolbar to display query results.
     """
@@ -127,7 +135,7 @@ def convert_documents_to_table(
     return rows, headers
 
 
-def format_mql_query(query: dict[str, Any]) -> str:
+def format_mql_query(query):
     """Format MQL query for display with pretty-printed arguments.
 
     Takes a query dictionary and formats it into a readable MQL string
@@ -161,10 +169,12 @@ def format_mql_query(query: dict[str, Any]) -> str:
         # Reconstruct the MQL string with pretty-printed arguments
         return f"db.{collection_name}.{operation}(\n{args_formatted}\n)"
     except Exception:
+        # parse_query_args raises ValueError; pprint.pformat can raise anything
+        # if a document value's __repr__ is broken, so we keep the broad catch.
         return mql_string
 
 
-def get_max_select_results() -> int:
+def get_max_select_results():
     """Get the maximum number of results to return when re-executing queries.
 
     Returns the value from Django settings DJDT_MQL_MAX_SELECT_RESULTS if set,
@@ -173,35 +183,18 @@ def get_max_select_results() -> int:
     return getattr(settings, "DJDT_MQL_MAX_SELECT_RESULTS", DEFAULT_MAX_SELECT_RESULTS)
 
 
-def get_signed_data(request: HttpRequest) -> dict[str, Any] | None:
-    """Extract and verify signed data from request.
+def get_mql_warning_threshold():
+    """Get the slow-query warning threshold in milliseconds.
 
-    Django Debug Toolbar uses cryptographically signed data to prevent
-    tampering when re-executing queries. This function extracts the signed
-    data from the request (GET or POST) and verifies the signature.
-
-    Note: This is a duplicate of debug_toolbar.panels.sql.views.get_signed_data().
-    We maintain our own copy for consistency with the MQL panel structure,
-    but it could potentially be imported from the SQL panel instead.
-
-    Called by:
-    - mql_explain() view to get verified query data for explain operations
-    - mql_select() view to get verified query data for select operations
-
-    Args:
-        request: The HTTP request containing signed form data
-
-    Returns:
-        dict: Verified data if signature is valid, None otherwise
+    Returns the value from Django settings DJDT_MQL_WARNING_THRESHOLD if set,
+    otherwise returns the default value.
     """
-    data = request.GET if request.method == "GET" else request.POST
-    signed_form = SignedDataForm(data)
-    if signed_form.is_valid():
-        return signed_form.verified_data()
-    return None
+    return getattr(
+        settings, "DJDT_MQL_WARNING_THRESHOLD", DEFAULT_MQL_WARNING_THRESHOLD
+    )
 
 
-def hex_to_rgb(hex_color: str) -> list[int]:
+def hex_to_rgb(hex_color):
     """Convert a hex color string to RGB values."""
     hex_color = hex_color.lstrip("#")
     if len(hex_color) != 6:
@@ -215,7 +208,7 @@ def hex_to_rgb(hex_color: str) -> list[int]:
         return [128, 128, 128]
 
 
-def is_read_operation(operation: str) -> bool:
+def is_read_operation(operation):
     """
     Read operations (like SQL SELECT) retrieve data without modifying it.
     This is used for UI styling in the debug toolbar.
@@ -227,7 +220,7 @@ def is_read_operation(operation: str) -> bool:
     return operation in MQL_READ_OPERATIONS
 
 
-def parse_query_args(query_dict: dict[str, Any]) -> tuple[str, str, list[Any]]:
+def parse_query_args(query_dict):
     """
     Parse structured query data into collection name, operation, and arguments.
 
@@ -268,7 +261,7 @@ def parse_query_args(query_dict: dict[str, Any]) -> tuple[str, str, list[Any]]:
         return collection_name, operation, []
 
 
-def patch_get_collection(connection) -> None:
+def patch_get_collection(connection):
     """
     Patch the get_collection method of the connection to return a wrapped
     Collection object that logs queries for the debug toolbar.
@@ -300,7 +293,7 @@ def patch_get_collection(connection) -> None:
     _patched_connections.add(connection)
 
 
-def patch_new_connection(sender, connection, **kwargs) -> None:
+def patch_new_connection(sender, connection, **kwargs):
     """
     Signal handler for Django's connection_created signal that automatically
     patches new MongoDB connections for debug toolbar instrumentation.
@@ -319,12 +312,7 @@ def patch_new_connection(sender, connection, **kwargs) -> None:
         patch_get_collection(connection)
 
 
-def process_query_groups(
-    query_groups: dict[tuple[str, str], list[dict[str, Any]]],
-    databases: dict[str, dict[str, Any]],
-    colors: Generator[str, None, None],
-    name: str,
-) -> None:
+def process_query_groups(query_groups, databases, colors, name):
     """
     Process grouped queries to add color coding and count metadata for display.
 
@@ -358,7 +346,7 @@ def process_query_groups(
         db_info[f"{name}_count"] = counts[alias]
 
 
-def query_key_duplicate(query: dict[str, Any]) -> str:
+def query_key_duplicate(query):
     """Generate a key for identifying duplicate queries.
 
     Duplicate queries are identical queries including their arguments.
@@ -367,7 +355,7 @@ def query_key_duplicate(query: dict[str, Any]) -> str:
     return query.get("mql", "")
 
 
-def query_key_similar(query: dict[str, Any]) -> str:
+def query_key_similar(query):
     """Generate a key for grouping similar queries.
 
     Similar queries have the same collection and operation, regardless of arguments.

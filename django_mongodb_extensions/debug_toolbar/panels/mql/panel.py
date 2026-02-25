@@ -8,7 +8,6 @@ from django.urls import path
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _, ngettext
 
-from debug_toolbar import settings as dt_settings
 from debug_toolbar.forms import SignedDataForm
 from debug_toolbar.panels.sql.forms import SQLSelectForm
 from debug_toolbar.panels.sql.panel import SQLPanel
@@ -16,6 +15,7 @@ from debug_toolbar.panels.sql.utils import contrasting_color_generator
 from debug_toolbar.utils import render_stacktrace
 from django_mongodb_extensions.debug_toolbar.panels.mql.utils import (
     MQL_PANEL_ID,
+    get_mql_warning_threshold,
     hex_to_rgb,
     is_read_operation,
     patch_get_collection,
@@ -103,7 +103,7 @@ class MQLPanel(SQLPanel):
         duplicate_query_groups = defaultdict(list)
 
         if self._queries:
-            sql_warning_threshold = dt_settings.get_config()["SQL_WARNING_THRESHOLD"]
+            mql_warning_threshold = get_mql_warning_threshold()
 
             db_colors = contrasting_color_generator()
             for db in self._databases.values():
@@ -118,16 +118,13 @@ class MQLPanel(SQLPanel):
                 try:
                     sim_key = query_key_similar(query)
                     similar_query_groups[(alias, sim_key)].append(query)
-                except Exception:
+                except KeyError:
                     pass
 
-                try:
-                    dup_key = query_key_duplicate(query)
-                    duplicate_query_groups[(alias, dup_key)].append(query)
-                except Exception:
-                    pass
+                dup_key = query_key_duplicate(query)
+                duplicate_query_groups[(alias, dup_key)].append(query)
 
-                query["is_slow"] = query["duration"] > sql_warning_threshold
+                query["is_slow"] = query["duration"] > mql_warning_threshold
 
                 operation = query.get("mql_operation", "")
                 query["is_select"] = is_read_operation(operation)

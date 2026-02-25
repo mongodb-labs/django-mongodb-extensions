@@ -160,10 +160,12 @@ class TestMQLPanel:
 
         assert panel.has_content is True
 
-    @patch("django_mongodb_extensions.debug_toolbar.panels.mql.panel.dt_settings")
-    def test_generate_stats_marks_slow_queries(self, mock_settings):
+    @patch(
+        "django_mongodb_extensions.debug_toolbar.panels.mql.panel.get_mql_warning_threshold"
+    )
+    def test_generate_stats_marks_slow_queries(self, mock_threshold):
         """Test that slow queries are marked correctly."""
-        mock_settings.get_config.return_value = {"SQL_WARNING_THRESHOLD": 10.0}
+        mock_threshold.return_value = 10.0
 
         mock_toolbar = Mock()
         mock_toolbar.request = Mock()
@@ -286,10 +288,12 @@ class TestMQLPanel:
 
         assert "2 connections" in title
 
-    @patch("django_mongodb_extensions.debug_toolbar.panels.mql.panel.dt_settings")
-    def test_generate_stats_exception_handling(self, mock_settings):
+    @patch(
+        "django_mongodb_extensions.debug_toolbar.panels.mql.panel.get_mql_warning_threshold"
+    )
+    def test_generate_stats_exception_handling(self, mock_threshold):
         """Test that exceptions in query grouping are handled gracefully."""
-        mock_settings.get_config.return_value = {"SQL_WARNING_THRESHOLD": 10.0}
+        mock_threshold.return_value = 10.0
 
         mock_toolbar = Mock()
         mock_toolbar.request = Mock()
@@ -308,51 +312,21 @@ class TestMQLPanel:
             mql_args_json="[{}]",
         )
 
-        # Mock query_key_similar to raise an exception
         with patch(
             "django_mongodb_extensions.debug_toolbar.panels.mql.panel.query_key_similar",
-            side_effect=Exception("Test exception"),
+            side_effect=KeyError("mql_collection"),
         ):
             # Should not raise, exception should be caught
             panel.generate_stats(Mock(), Mock())
             stats = panel.get_stats()
             assert len(stats["queries"]) == 1
 
-    @patch("django_mongodb_extensions.debug_toolbar.panels.mql.panel.dt_settings")
-    def test_generate_stats_duplicate_exception_handling(self, mock_settings):
-        """Test that exceptions in duplicate query grouping are handled gracefully."""
-        mock_settings.get_config.return_value = {"SQL_WARNING_THRESHOLD": 10.0}
-
-        mock_toolbar = Mock()
-        mock_toolbar.request = Mock()
-        mock_toolbar.stats = {}
-        mock_get_response = Mock()
-        panel = MQLPanel(toolbar=mock_toolbar, get_response=mock_get_response)
-
-        panel.record(
-            alias="default",
-            mql="db.users.find({})",
-            duration=10.5,
-            stacktrace=[],
-            mql_collection="users",
-            mql_operation="find",
-            mql_args_json="[{}]",
-        )
-
-        # Mock query_key_duplicate to raise an exception
-        with patch(
-            "django_mongodb_extensions.debug_toolbar.panels.mql.panel.query_key_duplicate",
-            side_effect=Exception("Test exception"),
-        ):
-            # Should not raise, exception should be caught
-            panel.generate_stats(Mock(), Mock())
-            stats = panel.get_stats()
-            assert len(stats["queries"]) == 1
-
-    @patch("django_mongodb_extensions.debug_toolbar.panels.mql.panel.dt_settings")
-    def test_generate_stats_zero_division_handling(self, mock_settings):
+    @patch(
+        "django_mongodb_extensions.debug_toolbar.panels.mql.panel.get_mql_warning_threshold"
+    )
+    def test_generate_stats_zero_division_handling(self, mock_threshold):
         """Test that zero division in width_ratio calculation is handled."""
-        mock_settings.get_config.return_value = {"SQL_WARNING_THRESHOLD": 10.0}
+        mock_threshold.return_value = 10.0
 
         mock_toolbar = Mock()
         mock_toolbar.request = Mock()

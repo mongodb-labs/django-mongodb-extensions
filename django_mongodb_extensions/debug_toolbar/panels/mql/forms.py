@@ -1,8 +1,5 @@
 """Forms for MQL panel."""
 
-from collections.abc import Callable
-from typing import Any
-
 from bson import json_util
 from django import forms
 from django.core.exceptions import ValidationError
@@ -27,25 +24,22 @@ class MQLBaseForm(SQLSelectForm):
     def clean(self):
         cleaned_data = super(forms.Form, self).clean()
 
-        def error(msg):
-            raise ValidationError(_(msg))
-
         request_id = cleaned_data.get("request_id")
         djdt_query_id = cleaned_data.get("djdt_query_id")
 
         if not request_id:
-            error("Missing request ID.")
+            raise ValidationError(_("Missing request ID."))
         if not djdt_query_id:
-            error("Missing query ID.")
+            raise ValidationError(_("Missing query ID."))
 
         toolbar = DebugToolbar.fetch(request_id, panel_id=MQL_PANEL_ID)
         if toolbar is None:
-            error("Data for this panel isn't available anymore.")
+            raise ValidationError(_("Data for this panel isn't available anymore."))
 
         panel = toolbar.get_panel_by_id(MQL_PANEL_ID)
         stats = panel.get_stats()
         if not stats or "queries" not in stats:
-            error("Query data is not available.")
+            raise ValidationError(_("Query data is not available."))
 
         query = next(
             (
@@ -56,14 +50,14 @@ class MQLBaseForm(SQLSelectForm):
             None,
         )
         if not query:
-            error("Invalid query ID.")
+            raise ValidationError(_("Invalid query ID."))
         if not all(key in query for key in ["alias", "mql"]):
-            error("Query data is incomplete.")
+            raise ValidationError(_("Query data is incomplete."))
 
         cleaned_data["query"] = query
         return cleaned_data
 
-    def _get_query_parts(self) -> QueryParts:
+    def _get_query_parts(self):
         query_dict = self.cleaned_data["query"]
         alias = query_dict.get("alias", "default")
         mql_string = query_dict.get("mql", "")
@@ -84,9 +78,7 @@ class MQLBaseForm(SQLSelectForm):
             args_list=args_list,
         )
 
-    def _handle_operation_error(
-        self, error: Exception, mql_string: str, operation_type: str = "operation"
-    ) -> tuple[list[list[str]], list[str]]:
+    def _handle_operation_error(self, error, mql_string, operation_type="operation"):
         error_map = {
             pymongo_errors.OperationFailure: (
                 "MongoDB Operation Error",
@@ -148,9 +140,7 @@ class MQLBaseForm(SQLSelectForm):
         formatted_body.extend(["", f"Original query: {mql_string}"])
         return [formatted_body], [header]
 
-    def _execute_operation(
-        self, operation_type: str, executor_func: Callable[..., Any]
-    ) -> tuple[list[list[str]], list[str]]:
+    def _execute_operation(self, operation_type, executor_func):
         mql_string = ""
         try:
             parts = self._get_query_parts()
@@ -168,16 +158,14 @@ class MQLBaseForm(SQLSelectForm):
 
 
 class MQLExplainForm(MQLBaseForm):
-    def _execute_aggregate(
-        self, db: Any, collection_name: str, args_list: list[Any]
-    ) -> dict[str, Any]:
+    def _execute_aggregate(self, db, collection_name, args_list):
         pipeline = args_list[0] if args_list else []
         return db.command(
             "explain",
             {"aggregate": collection_name, "pipeline": pipeline, "cursor": {}},
         )
 
-    def _execute_find(self, collection: Any, args_list: list[Any]) -> dict[str, Any]:
+    def _execute_find(self, collection, args_list):
         if len(args_list) >= 2:
             filter_doc, projection = args_list[0], args_list[1]
             cursor = collection.find(filter_doc, projection)
@@ -191,7 +179,7 @@ class MQLExplainForm(MQLBaseForm):
         finally:
             cursor.close()
 
-    def _execute_count(self, collection: Any, args_list: list[Any]) -> dict[str, Any]:
+    def _execute_count(self, collection, args_list):
         filter_doc = args_list[0] if args_list else {}
         cursor = collection.find(filter_doc)
         try:
@@ -199,14 +187,8 @@ class MQLExplainForm(MQLBaseForm):
         finally:
             cursor.close()
 
-    def explain(self) -> tuple[list[list[str]], list[str]]:
-        def _execute_explain(
-            db: Any,
-            collection: Any,
-            collection_name: str,
-            operation: str,
-            args_list: list[Any],
-        ) -> tuple[list[list[str]], list[str]]:
+    def explain(self):
+        def _execute_explain(db, collection, collection_name, operation, args_list):
             """Inner function to execute the explain operation."""
             if operation == "aggregate":
                 explain_result = self._execute_aggregate(db, collection_name, args_list)
@@ -227,9 +209,7 @@ class MQLExplainForm(MQLBaseForm):
 
 
 class MQLSelectForm(MQLBaseForm):
-    def _execute_aggregate(
-        self, collection: Any, args_list: list[Any]
-    ) -> list[dict[str, Any]]:
+    def _execute_aggregate(self, collection, args_list):
         pipeline = args_list[0] if args_list else []
         result_docs = []
         max_results = get_max_select_results()
@@ -240,9 +220,7 @@ class MQLSelectForm(MQLBaseForm):
                 result_docs.append(doc)
         return result_docs
 
-    def _execute_find(
-        self, collection: Any, args_list: list[Any]
-    ) -> list[dict[str, Any]]:
+    def _execute_find(self, collection, args_list):
         max_results = get_max_select_results()
         if len(args_list) >= 2:
             filter_doc, projection = args_list[0], args_list[1]
@@ -257,21 +235,13 @@ class MQLSelectForm(MQLBaseForm):
         finally:
             cursor.close()
 
-    def _execute_count(
-        self, collection: Any, args_list: list[Any]
-    ) -> list[dict[str, int]]:
+    def _execute_count(self, collection, args_list):
         filter_doc = args_list[0] if args_list else {}
         count = collection.count_documents(filter_doc)
         return [{"count": count}]
 
-    def select(self) -> tuple[list[list[str]], list[str]]:
-        def _execute_select(
-            db: Any,
-            collection: Any,
-            collection_name: str,
-            operation: str,
-            args_list: list[Any],
-        ) -> tuple[list[list[str]], list[str]]:
+    def select(self):
+        def _execute_select(db, collection, collection_name, operation, args_list):
             """Inner function to execute the select operation."""
             if operation == "aggregate":
                 result_docs = self._execute_aggregate(collection, args_list)

@@ -17,14 +17,14 @@ class TestMQLBaseForm:
     """Test MQLBaseForm validation and helpers."""
 
     def test_clean_missing_request_id(self):
-        """Test that missing request_id raises ValidationError."""
+        """Missing request_id raises ValidationError."""
         form = MQLBaseForm(data={})
         form.is_valid()  # Trigger validation
         with pytest.raises(ValidationError, match="Missing request ID"):
             form.clean()
 
     def test_clean_missing_query_id(self):
-        """Test that missing query_id raises ValidationError."""
+        """Missing query_id raises ValidationError."""
         form = MQLBaseForm(data={"request_id": "test-request"})
         form.is_valid()  # Trigger validation
         with pytest.raises(ValidationError, match="Missing query ID"):
@@ -32,7 +32,7 @@ class TestMQLBaseForm:
 
     @patch("django_mongodb_extensions.debug_toolbar.panels.mql.forms.DebugToolbar")
     def test_clean_toolbar_not_found(self, mock_toolbar_class):
-        """Test that missing toolbar raises ValidationError."""
+        """Unavailable toolbar data raises ValidationError."""
         mock_toolbar_class.fetch.return_value = None
 
         form = MQLBaseForm(
@@ -44,7 +44,7 @@ class TestMQLBaseForm:
 
     @patch("django_mongodb_extensions.debug_toolbar.panels.mql.forms.DebugToolbar")
     def test_clean_invalid_stats_structure(self, mock_toolbar_class):
-        """Test that invalid stats structure raises ValidationError."""
+        """Invalid stats structure raises ValidationError."""
         mock_toolbar = Mock()
         mock_panel = Mock()
         mock_panel.get_stats.return_value = None  # Invalid stats
@@ -60,7 +60,7 @@ class TestMQLBaseForm:
 
     @patch("django_mongodb_extensions.debug_toolbar.panels.mql.forms.DebugToolbar")
     def test_clean_query_not_found(self, mock_toolbar_class):
-        """Test that missing query raises ValidationError."""
+        """Query ID not found in stats raises ValidationError."""
         mock_toolbar = Mock()
         mock_panel = Mock()
         mock_panel.get_stats.return_value = {"queries": []}
@@ -76,7 +76,7 @@ class TestMQLBaseForm:
 
     @patch("django_mongodb_extensions.debug_toolbar.panels.mql.forms.DebugToolbar")
     def test_clean_incomplete_query_data(self, mock_toolbar_class):
-        """Test that incomplete query data raises ValidationError."""
+        """Incomplete query data raises ValidationError."""
         mock_toolbar = Mock()
         mock_panel = Mock()
         # Query missing required 'mql' field
@@ -94,7 +94,7 @@ class TestMQLBaseForm:
             form.clean()
 
     def test_handle_operation_error_operation_failure(self):
-        """Test error handling for OperationFailure."""
+        """OperationFailure is reported as 'MongoDB Operation Error'."""
         form = MQLBaseForm()
         error = pymongo_errors.OperationFailure("Invalid query")
         result, headers = form._handle_operation_error(error, "db.test.find({})")
@@ -104,7 +104,7 @@ class TestMQLBaseForm:
         assert "Original query: db.test.find({})" in result[0]
 
     def test_handle_operation_error_connection_failure(self):
-        """Test error handling for ConnectionFailure."""
+        """ConnectionFailure is reported as 'MongoDB Connection Error'."""
         form = MQLBaseForm()
         error = pymongo_errors.ConnectionFailure("Connection refused")
         result, headers = form._handle_operation_error(error, "db.test.find({})")
@@ -113,7 +113,7 @@ class TestMQLBaseForm:
         assert "MongoDB connection error" in result[0][0]
 
     def test_handle_operation_error_value_error_select(self):
-        """Test error handling for ValueError in select operation."""
+        """ValueError in a select operation is reported as 'Query Parsing Error' with a read-only hint."""
         form = MQLBaseForm()
         error = ValueError("Unsupported operation")
         result, headers = form._handle_operation_error(
@@ -124,7 +124,7 @@ class TestMQLBaseForm:
         assert "can only re-execute read operations" in "\n".join(result[0])
 
     def test_handle_operation_error_unexpected(self):
-        """Test error handling for unexpected errors."""
+        """Unexpected errors are reported using the operation type as the header."""
         form = MQLBaseForm()
         error = RuntimeError("Unexpected error")
         result, headers = form._handle_operation_error(
@@ -135,7 +135,7 @@ class TestMQLBaseForm:
         assert "Unexpected error executing select" in result[0][0]
 
     def test_handle_operation_error_server_selection_timeout(self):
-        """Test error handling for ServerSelectionTimeoutError."""
+        """ServerSelectionTimeoutError is reported as 'MongoDB Connection Error'."""
         form = MQLBaseForm()
         error = pymongo_errors.ServerSelectionTimeoutError("Server selection timeout")
         result, headers = form._handle_operation_error(error, "db.test.find({})")
@@ -148,7 +148,7 @@ class TestMQLBaseForm:
         assert "Original query: db.test.find({})" in result_text
 
     def test_handle_operation_error_pymongo_error(self):
-        """Test error handling for generic PyMongoError."""
+        """Generic PyMongoError is reported as 'MongoDB Error'."""
         form = MQLBaseForm()
         error = pymongo_errors.PyMongoError("Generic MongoDB error")
         result, headers = form._handle_operation_error(error, "db.test.find({})")
@@ -160,7 +160,7 @@ class TestMQLBaseForm:
         assert "Original query: db.test.find({})" in result_text
 
     def test_handle_operation_error_value_error_explain(self):
-        """Test error handling for ValueError in explain operation."""
+        """ValueError in an explain operation is reported as 'Query Parsing Error' with a re-execution hint."""
         form = MQLBaseForm()
         error = ValueError("Unsupported operation")
         result, headers = form._handle_operation_error(
@@ -182,7 +182,7 @@ class TestMQLSelectForm:
     def test_execute_find_with_cursor_cleanup(
         self, mock_toolbar_class, mock_connections
     ):
-        """Test that find operation properly cleans up cursors."""
+        """find closes the cursor after execution."""
         # Setup mocks
         mock_cursor = MagicMock()
         mock_cursor.limit.return_value = [{"_id": 1}, {"_id": 2}]
@@ -198,7 +198,7 @@ class TestMQLSelectForm:
         assert len(result) == 2
 
     def test_execute_find_cursor_cleanup_on_error(self):
-        """Test that cursor is closed even when an error occurs."""
+        """find closes the cursor even when an error occurs."""
         mock_cursor = MagicMock()
         mock_cursor.limit.side_effect = Exception("Test error")
 
@@ -214,7 +214,7 @@ class TestMQLSelectForm:
         mock_cursor.close.assert_called_once()
 
     def test_explain_find_with_cursor_cleanup(self):
-        """Test that explain find operation properly cleans up cursors."""
+        """explain find closes the cursor after execution."""
         mock_cursor = MagicMock()
         mock_cursor.explain.return_value = {"queryPlanner": {}}
 
@@ -229,7 +229,7 @@ class TestMQLSelectForm:
         assert result == {"queryPlanner": {}}
 
     def test_explain_find_cursor_cleanup_on_error(self):
-        """Test that cursor is closed even when explain fails."""
+        """explain find closes the cursor even when an error occurs."""
         mock_cursor = MagicMock()
         mock_cursor.explain.side_effect = Exception("Explain error")
 
@@ -245,7 +245,7 @@ class TestMQLSelectForm:
         mock_cursor.close.assert_called_once()
 
     def test_explain_count_with_cursor_cleanup(self):
-        """Test that explain count operation properly cleans up cursors."""
+        """explain count closes the cursor after execution."""
         mock_cursor = MagicMock()
         mock_cursor.explain.return_value = {"queryPlanner": {}}
 
@@ -260,7 +260,7 @@ class TestMQLSelectForm:
         assert result == {"queryPlanner": {}}
 
     def test_explain_count_cursor_cleanup_on_error(self):
-        """Test that cursor is closed even when explain count fails."""
+        """explain count closes the cursor even when an error occurs."""
         mock_cursor = MagicMock()
         mock_cursor.explain.side_effect = Exception("Explain count error")
 
@@ -280,7 +280,7 @@ class TestMQLExplainForm:
     """Test MQLExplainForm execution."""
 
     def test_execute_aggregate_explain(self):
-        """Test explain for aggregate operation."""
+        """aggregate explain calls db.command with an explain wrapper."""
         mock_db = Mock()
         mock_db.command.return_value = {"queryPlanner": {}}
 
@@ -291,7 +291,7 @@ class TestMQLExplainForm:
         assert "queryPlanner" in result
 
     def test_execute_find_explain(self):
-        """Test explain for find operation."""
+        """find explain calls cursor.explain()."""
         mock_cursor = Mock()
         mock_cursor.explain.return_value = {"queryPlanner": {}}
 
@@ -305,7 +305,7 @@ class TestMQLExplainForm:
         assert "queryPlanner" in result
 
     def test_execute_find_with_projection(self):
-        """Test explain for find operation with projection."""
+        """find explain passes both filter and projection to find()."""
         mock_cursor = Mock()
         mock_cursor.explain.return_value = {"queryPlanner": {}}
 
@@ -323,7 +323,7 @@ class TestMQLExplainForm:
         assert "queryPlanner" in result
 
     def test_execute_find_no_args(self):
-        """Test explain for find operation with no arguments."""
+        """find explain with no arguments calls find({})."""
         mock_cursor = Mock()
         mock_cursor.explain.return_value = {"queryPlanner": {}}
 
@@ -343,7 +343,7 @@ class TestMQLExplainForm:
     @patch("django_mongodb_extensions.debug_toolbar.panels.mql.forms.connections")
     @patch("django_mongodb_extensions.debug_toolbar.panels.mql.forms.parse_query_args")
     def test_explain_full_flow(self, mock_parse, mock_connections, mock_toolbar_class):
-        """Test the full explain flow through _execute_operation."""
+        """Full explain flow returns JSON explain output."""
         # Setup toolbar and panel mocks
         mock_toolbar = Mock()
         mock_panel = Mock()
@@ -397,7 +397,7 @@ class TestMQLExplainForm:
     def test_explain_aggregate_flow(
         self, mock_parse, mock_connections, mock_toolbar_class
     ):
-        """Test explain for aggregate operation."""
+        """Aggregate explain flow returns JSON explain output."""
         # Setup toolbar and panel mocks
         mock_toolbar = Mock()
         mock_panel = Mock()
@@ -450,7 +450,7 @@ class TestMQLExplainForm:
     @patch("django_mongodb_extensions.debug_toolbar.panels.mql.forms.connections")
     @patch("django_mongodb_extensions.debug_toolbar.panels.mql.forms.parse_query_args")
     def test_explain_count_flow(self, mock_parse, mock_connections, mock_toolbar_class):
-        """Test explain for count_documents operation."""
+        """count_documents explain flow returns JSON explain output."""
         # Setup toolbar and panel mocks
         mock_toolbar = Mock()
         mock_panel = Mock()
@@ -502,7 +502,7 @@ class TestMQLSelectFormExtended:
     """Extended tests for MQLSelectForm execution."""
 
     def test_execute_find_with_projection(self):
-        """Test select for find operation with projection."""
+        """find select passes both filter and projection to find()."""
         mock_cursor = Mock()
         mock_cursor.limit.return_value = [{"_id": 1, "name": "test"}]
 
@@ -520,7 +520,7 @@ class TestMQLSelectFormExtended:
         assert len(result) == 1
 
     def test_execute_find_no_args(self):
-        """Test select for find operation with no arguments."""
+        """find select with no arguments calls find({})."""
         mock_cursor = Mock()
         mock_cursor.limit.return_value = [{"_id": 1}, {"_id": 2}]
 
@@ -536,7 +536,7 @@ class TestMQLSelectFormExtended:
         assert len(result) == 2
 
     def test_execute_count(self):
-        """Test select for count_documents operation."""
+        """count_documents returns the document count."""
         mock_collection = Mock()
         mock_collection.count_documents.return_value = 42
 
@@ -547,7 +547,7 @@ class TestMQLSelectFormExtended:
         assert result == [{"count": 42}]
 
     def test_execute_count_no_filter(self):
-        """Test select for count_documents with no filter."""
+        """count_documents with no filter counts all documents."""
         mock_collection = Mock()
         mock_collection.count_documents.return_value = 100
 
@@ -561,7 +561,7 @@ class TestMQLSelectFormExtended:
         "django_mongodb_extensions.debug_toolbar.panels.mql.forms.get_max_select_results"
     )
     def test_execute_aggregate_with_limit(self, mock_get_max):
-        """Test select for aggregate operation respects max results."""
+        """aggregate select respects the max results limit."""
         mock_get_max.return_value = 2
 
         # Create a mock cursor that yields 5 documents
@@ -583,7 +583,7 @@ class TestMQLSelectFormExtended:
     @patch("django_mongodb_extensions.debug_toolbar.panels.mql.forms.connections")
     @patch("django_mongodb_extensions.debug_toolbar.panels.mql.forms.parse_query_args")
     def test_select_full_flow(self, mock_parse, mock_connections, mock_toolbar_class):
-        """Test the full select flow through _execute_operation."""
+        """Full select flow returns tabular results."""
         # Setup toolbar and panel mocks
         mock_toolbar = Mock()
         mock_panel = Mock()
@@ -636,7 +636,7 @@ class TestMQLSelectFormExtended:
     def test_select_aggregate_flow(
         self, mock_parse, mock_connections, mock_toolbar_class
     ):
-        """Test select for aggregate operation."""
+        """Aggregate select flow returns tabular results."""
         # Setup toolbar and panel mocks
         mock_toolbar = Mock()
         mock_panel = Mock()
@@ -691,7 +691,7 @@ class TestMQLSelectFormExtended:
     @patch("django_mongodb_extensions.debug_toolbar.panels.mql.forms.connections")
     @patch("django_mongodb_extensions.debug_toolbar.panels.mql.forms.parse_query_args")
     def test_select_count_flow(self, mock_parse, mock_connections, mock_toolbar_class):
-        """Test select for count_documents operation."""
+        """count_documents select flow returns tabular results."""
         # Setup toolbar and panel mocks
         mock_toolbar = Mock()
         mock_panel = Mock()

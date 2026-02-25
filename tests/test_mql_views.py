@@ -6,62 +6,7 @@ from bson import json_util
 
 from django_mongodb_extensions.debug_toolbar.panels.mql.utils import (
     format_mql_query,
-    get_signed_data,
 )
-
-
-class TestGetSignedData:
-    """Test get_signed_data function."""
-
-    def test_valid_signed_data_get(self):
-        """Test extracting valid signed data from GET request."""
-        mock_request = Mock()
-        mock_request.method = "GET"
-        mock_request.GET = {"signature": "test"}
-
-        with patch(
-            "django_mongodb_extensions.debug_toolbar.panels.mql.utils.SignedDataForm"
-        ) as mock_form_class:
-            mock_form = Mock()
-            mock_form.is_valid.return_value = True
-            mock_form.verified_data.return_value = {"test": "data"}
-            mock_form_class.return_value = mock_form
-
-            result = get_signed_data(mock_request)
-            assert result == {"test": "data"}
-
-    def test_valid_signed_data_post(self):
-        """Test extracting valid signed data from POST request."""
-        mock_request = Mock()
-        mock_request.method = "POST"
-        mock_request.POST = {"signature": "test"}
-
-        with patch(
-            "django_mongodb_extensions.debug_toolbar.panels.mql.utils.SignedDataForm"
-        ) as mock_form_class:
-            mock_form = Mock()
-            mock_form.is_valid.return_value = True
-            mock_form.verified_data.return_value = {"test": "data"}
-            mock_form_class.return_value = mock_form
-
-            result = get_signed_data(mock_request)
-            assert result == {"test": "data"}
-
-    def test_invalid_signed_data(self):
-        """Test that invalid signed data returns None."""
-        mock_request = Mock()
-        mock_request.method = "GET"
-        mock_request.GET = {"signature": "invalid"}
-
-        with patch(
-            "django_mongodb_extensions.debug_toolbar.panels.mql.utils.SignedDataForm"
-        ) as mock_form_class:
-            mock_form = Mock()
-            mock_form.is_valid.return_value = False
-            mock_form_class.return_value = mock_form
-
-            result = get_signed_data(mock_request)
-            assert result is None
 
 
 class TestFormatMqlQuery:
@@ -70,28 +15,22 @@ class TestFormatMqlQuery:
     def test_format_simple_query(self):
         """Test formatting a simple query."""
         query = {
-            "sql": "db.users.find({})",
             "mql_collection": "users",
             "mql_operation": "find",
             "mql_args_json": json_util.dumps([{}]),
         }
 
-        result = format_mql_query(query)
-        assert "db.users.find(" in result
-        assert "{}" in result
+        assert format_mql_query(query) == "db.users.find(\n{}\n)"
 
     def test_format_query_with_multiple_args(self):
         """Test formatting a query with multiple arguments."""
         query = {
-            "sql": "db.users.find({}, {'name': 1})",
             "mql_collection": "users",
             "mql_operation": "find",
             "mql_args_json": json_util.dumps([{}, {"name": 1}]),
         }
 
-        result = format_mql_query(query)
-        assert "db.users.find(" in result
-        assert "'name': 1" in result
+        assert format_mql_query(query) == "db.users.find(\n[{}, {'name': 1}]\n)"
 
     def test_format_query_fallback_on_error(self):
         """Test that formatting falls back to original MQL on error."""
@@ -100,35 +39,31 @@ class TestFormatMqlQuery:
             # Missing required fields to trigger error
         }
 
-        result = format_mql_query(query)
-        assert result == "db.users.find({})"
+        assert format_mql_query(query) == "db.users.find({})"
 
     def test_format_aggregate_query(self):
         """Test formatting an aggregate query."""
         pipeline = [{"$match": {"status": "active"}}, {"$group": {"_id": "$category"}}]
         query = {
-            "sql": "db.users.aggregate([...])",
             "mql_collection": "users",
             "mql_operation": "aggregate",
             "mql_args_json": json_util.dumps([pipeline]),
         }
 
-        result = format_mql_query(query)
-        assert "db.users.aggregate(" in result
-        assert "$match" in result
-        assert "$group" in result
+        assert (
+            format_mql_query(query)
+            == "db.users.aggregate(\n[{'$match': {'status': 'active'}}, {'$group': {'_id': '$category'}}]\n)"
+        )
 
     def test_format_query_no_args(self):
         """Test formatting a query with no arguments."""
         query = {
-            "sql": "db.users.find()",
             "mql_collection": "users",
             "mql_operation": "find",
             "mql_args_json": json_util.dumps([]),
         }
 
-        result = format_mql_query(query)
-        assert "db.users.find(" in result
+        assert format_mql_query(query) == "db.users.find(\n\n)"
 
 
 class TestMqlExplainView:

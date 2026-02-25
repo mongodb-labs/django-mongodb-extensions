@@ -1,21 +1,22 @@
 """Views for MQL panel."""
 
-from django.http import HttpRequest, HttpResponseBadRequest, JsonResponse
+from django.http import HttpResponseBadRequest, JsonResponse
 from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_exempt
 
 from debug_toolbar._compat import login_not_required
 from debug_toolbar.decorators import render_with_toolbar_language, require_show_toolbar
+from debug_toolbar.panels.sql.views import get_signed_data
 
 from .forms import MQLExplainForm, MQLSelectForm
-from .utils import format_mql_query, get_signed_data
+from .utils import format_mql_query
 
 
 @csrf_exempt
 @login_not_required
 @require_show_toolbar
 @render_with_toolbar_language
-def mql_explain(request: HttpRequest) -> JsonResponse:
+def mql_explain(request):
     verified_data = get_signed_data(request)
     if not verified_data:
         return HttpResponseBadRequest("Invalid signature")
@@ -41,7 +42,7 @@ def mql_explain(request: HttpRequest) -> JsonResponse:
 @login_not_required
 @require_show_toolbar
 @render_with_toolbar_language
-def mql_select(request: HttpRequest) -> JsonResponse:
+def mql_select(request):
     verified_data = get_signed_data(request)
     if not verified_data:
         return HttpResponseBadRequest("Invalid signature")

@@ -11,7 +11,6 @@ from django_mongodb_extensions.debug_toolbar.panels.mql.utils import (
     convert_documents_to_table,
     format_mql_query,
     get_max_select_results,
-    get_signed_data,
     hex_to_rgb,
     is_read_operation,
     parse_query_args,
@@ -407,60 +406,6 @@ class TestFormatMqlQuery:
 
         result = format_mql_query(query)
         assert "db.users.find(" in result
-
-
-class TestGetSignedData:
-    """Test get_signed_data function."""
-
-    def test_get_signed_data_valid_get(self):
-        """Test extracting valid signed data from GET request."""
-        mock_request = Mock()
-        mock_request.method = "GET"
-        mock_request.GET = {"signed_data": "test"}
-
-        with patch(
-            "django_mongodb_extensions.debug_toolbar.panels.mql.utils.SignedDataForm"
-        ) as mock_form_class:
-            mock_form = Mock()
-            mock_form.is_valid.return_value = True
-            mock_form.verified_data.return_value = {"key": "value"}
-            mock_form_class.return_value = mock_form
-
-            result = get_signed_data(mock_request)
-            assert result == {"key": "value"}
-
-    def test_get_signed_data_valid_post(self):
-        """Test extracting valid signed data from POST request."""
-        mock_request = Mock()
-        mock_request.method = "POST"
-        mock_request.POST = {"signed_data": "test"}
-
-        with patch(
-            "django_mongodb_extensions.debug_toolbar.panels.mql.utils.SignedDataForm"
-        ) as mock_form_class:
-            mock_form = Mock()
-            mock_form.is_valid.return_value = True
-            mock_form.verified_data.return_value = {"key": "value"}
-            mock_form_class.return_value = mock_form
-
-            result = get_signed_data(mock_request)
-            assert result == {"key": "value"}
-
-    def test_get_signed_data_invalid(self):
-        """Test that invalid signed data returns None."""
-        mock_request = Mock()
-        mock_request.method = "GET"
-        mock_request.GET = {"signed_data": "invalid"}
-
-        with patch(
-            "django_mongodb_extensions.debug_toolbar.panels.mql.utils.SignedDataForm"
-        ) as mock_form_class:
-            mock_form = Mock()
-            mock_form.is_valid.return_value = False
-            mock_form_class.return_value = mock_form
-
-            result = get_signed_data(mock_request)
-            assert result is None
 
 
 class TestParseQueryArgsEdgeCases:
