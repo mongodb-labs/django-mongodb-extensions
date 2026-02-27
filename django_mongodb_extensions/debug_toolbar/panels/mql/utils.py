@@ -3,7 +3,6 @@
 import pprint
 import types
 import weakref
-from collections import defaultdict
 
 from bson import json_util
 from debug_toolbar.utils import get_stack_trace
@@ -31,11 +30,10 @@ DEFAULT_MQL_WARNING_THRESHOLD = 500
 
 # Read operations used by django-mongodb-backend.
 # These are the only MongoDB read operations that django-mongodb-backend actually
-# uses, so they're the only ones we need to support in the debug toolbar.
+# uses, so they're the only ones supported in the debug toolbar.
 MQL_READ_OPERATIONS = {
     "find",
     "aggregate",
-    "count_documents",
 }
 
 # Track which connections have been patched to avoid double-patching
@@ -170,7 +168,7 @@ def format_mql_query(query):
         return f"db.{collection_name}.{operation}(\n{args_formatted}\n)"
     except Exception:
         # parse_query_args raises ValueError; pprint.pformat can raise anything
-        # if a document value's __repr__ is broken, so we keep the broad catch.
+        # if a document value's __repr__ is broken, so keep the broad catch.
         return mql_string
 
 
@@ -192,32 +190,6 @@ def get_mql_warning_threshold():
     return getattr(
         settings, "DJDT_MQL_WARNING_THRESHOLD", DEFAULT_MQL_WARNING_THRESHOLD
     )
-
-
-def hex_to_rgb(hex_color):
-    """Convert a hex color string to RGB values."""
-    hex_color = hex_color.lstrip("#")
-    if len(hex_color) != 6:
-        # Return a default gray color if invalid
-        return [128, 128, 128]
-
-    try:
-        # Convert hex to RGB
-        return [int(hex_color[i : i + 2], 16) for i in (0, 2, 4)]
-    except ValueError:
-        return [128, 128, 128]
-
-
-def is_read_operation(operation):
-    """
-    Read operations (like SQL SELECT) retrieve data without modifying it.
-    This is used for UI styling in the debug toolbar.
-
-    Called by MQLPanel.generate_stats() in panel.py to set query["is_select"],
-    which determines whether the Sel and Expl buttons are shown in the UI for
-    re-executing queries.
-    """
-    return operation in MQL_READ_OPERATIONS
 
 
 def parse_query_args(query_dict):
@@ -248,7 +220,16 @@ def parse_query_args(query_dict):
     if not collection_name or not operation:
         raise ValueError("Missing required fields: collection_name or operation")
 
-    if args_json is not None and args_json != "":
+    # If args_json is None, serialization failed when the query was logged.
+    # Treat this as unreplayable to avoid re-executing a different query
+    # (e.g., find({}) instead of the actual query that was run).
+    if args_json is None:
+        raise ValueError(
+            "Query arguments could not be serialized when logged. "
+            "This query cannot be re-executed because the original arguments are unavailable."
+        )
+
+    if args_json != "":
         try:
             args_list = json_util.loads(args_json)
         except (ValueError, TypeError) as e:
@@ -266,10 +247,10 @@ def patch_get_collection(connection):
     Patch the get_collection method of the connection to return a wrapped
     Collection object that logs queries for the debug toolbar.
 
-    Save the original get_collection method so we can:
+    The original get_collection method is saved to:
     - Call it to get the collection with any custom logic preserved.
     - Restore it later if needed (e.g., when disabling instrumentation).
-    - Avoid infinite recursion when our patched method calls the original.
+    - Avoid infinite recursion when the patched method calls the original.
     """
     if connection in _patched_connections:
         return
@@ -310,57 +291,3 @@ def patch_new_connection(sender, connection, **kwargs):
     """
     if hasattr(connection, "database") and hasattr(connection, "get_collection"):
         patch_get_collection(connection)
-
-
-def process_query_groups(query_groups, databases, colors, name):
-    """
-    Process grouped queries to add color coding and count metadata for display.
-
-    This function is called by MQLPanel.generate_stats() in panel.py to annotate
-    similar and duplicate queries with visual indicators (colors and counts) that
-    are displayed in the debug toolbar UI.
-
-    Called twice in generate_stats():
-    - Once with similar_query_groups and name="similar" to highlight queries with
-      the same operation but different parameters (e.g., db.users.find() with
-      different filters)
-    - Once with duplicate_query_groups and name="duplicate" to highlight identical
-      queries (same operation and parameters)
-
-    For each group with 2+ queries, this function:
-    - Assigns a unique color to visually group them in the UI
-    - Adds {name}_count and {name}_color attributes to each query dict
-    - Updates database-level counts in the databases dict
-    """
-    counts = defaultdict(int)
-    for (alias, _key), query_group in query_groups.items():
-        count = len(query_group)
-        # Queries are similar / duplicates only if there are at least 2 of them.
-        if count > 1:
-            color = next(colors)
-            for query in query_group:
-                query[f"{name}_count"] = count
-                query[f"{name}_color"] = color
-            counts[alias] += count
-    for alias, db_info in databases.items():
-        db_info[f"{name}_count"] = counts[alias]
-
-
-def query_key_duplicate(query):
-    """Generate a key for identifying duplicate queries.
-
-    Duplicate queries are identical queries including their arguments.
-    Uses the full mql string for exact matching.
-    """
-    return query.get("mql", "")
-
-
-def query_key_similar(query):
-    """Generate a key for grouping similar queries.
-
-    Similar queries have the same collection and operation, regardless of arguments.
-    Returns a template like "db.collection.operation()" for grouping.
-    """
-    collection = query["mql_collection"]
-    operation = query["mql_operation"]
-    return f"db.{collection}.{operation}()"

@@ -22,7 +22,9 @@ class MQLBaseForm(SQLSelectForm):
     """Base form with shared validation and helpers."""
 
     def clean(self):
-        cleaned_data = super(forms.Form, self).clean()
+        # Explicitly call forms.Form.clean() to bypass SQLSelectForm.clean()
+        # which has SQL-specific validation we don't need for MQL queries.
+        cleaned_data = forms.Form.clean(self)
 
         request_id = cleaned_data.get("request_id")
         djdt_query_id = cleaned_data.get("djdt_query_id")
@@ -179,33 +181,22 @@ class MQLExplainForm(MQLBaseForm):
         finally:
             cursor.close()
 
-    def _execute_count(self, collection, args_list):
-        filter_doc = args_list[0] if args_list else {}
-        cursor = collection.find(filter_doc)
-        try:
-            return cursor.explain()
-        finally:
-            cursor.close()
+    def _execute_explain(self, db, collection, collection_name, operation, args_list):
+        if operation == "aggregate":
+            explain_result = self._execute_aggregate(db, collection_name, args_list)
+        elif operation == "find":
+            explain_result = self._execute_find(collection, args_list)
+        else:
+            raise ValueError(f"Unsupported operation: {operation}")
+
+        explain_json = json_util.dumps(explain_result, indent=2)
+
+        result = [[explain_json]]
+        headers = ["MongoDB Explain Output (JSON)"]
+        return result, headers
 
     def explain(self):
-        def _execute_explain(db, collection, collection_name, operation, args_list):
-            """Inner function to execute the explain operation."""
-            if operation == "aggregate":
-                explain_result = self._execute_aggregate(db, collection_name, args_list)
-            elif operation == "find":
-                explain_result = self._execute_find(collection, args_list)
-            elif operation == "count_documents":
-                explain_result = self._execute_count(collection, args_list)
-            else:
-                raise ValueError(f"Unsupported operation: {operation}")
-
-            explain_json = json_util.dumps(explain_result, indent=2)
-
-            result = [[explain_json]]
-            headers = ["MongoDB Explain Output (JSON)"]
-            return result, headers
-
-        return self._execute_operation("explain", _execute_explain)
+        return self._execute_operation("explain", self._execute_explain)
 
 
 class MQLSelectForm(MQLBaseForm):
@@ -235,24 +226,16 @@ class MQLSelectForm(MQLBaseForm):
         finally:
             cursor.close()
 
-    def _execute_count(self, collection, args_list):
-        filter_doc = args_list[0] if args_list else {}
-        count = collection.count_documents(filter_doc)
-        return [{"count": count}]
+    def _execute_select(self, db, collection, collection_name, operation, args_list):
+        if operation == "aggregate":
+            result_docs = self._execute_aggregate(collection, args_list)
+        elif operation == "find":
+            result_docs = self._execute_find(collection, args_list)
+        else:
+            raise ValueError(f"Unsupported read operation: {operation}")
+
+        # Convert documents to table format with columns
+        return convert_documents_to_table(result_docs)
 
     def select(self):
-        def _execute_select(db, collection, collection_name, operation, args_list):
-            """Inner function to execute the select operation."""
-            if operation == "aggregate":
-                result_docs = self._execute_aggregate(collection, args_list)
-            elif operation == "find":
-                result_docs = self._execute_find(collection, args_list)
-            elif operation == "count_documents":
-                result_docs = self._execute_count(collection, args_list)
-            else:
-                raise ValueError(f"Unsupported read operation: {operation}")
-
-            # Convert documents to table format with columns
-            return convert_documents_to_table(result_docs)
-
-        return self._execute_operation("select", _execute_select)
+        return self._execute_operation("select", self._execute_select)

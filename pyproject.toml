@@ -15,42 +15,13 @@ dependencies = [
 
 [project.optional-dependencies]
 test = [
-    "pytest>=7.0",
-    "pytest-cov>=4.0",
-    "django>=4.2",
-    "django-debug-toolbar>=4.0",
+    "django-debug-toolbar",
 ]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-python_files = ["test_*.py"]
-python_classes = ["Test*"]
-python_functions = ["test_*"]
-addopts = [
-    "--strict-markers",
-    "--strict-config",
-    "-ra",
-]
+[tool.hatch.build.targets.wheel]
+packages = ["django_mongodb_extensions"]
 
-[tool.coverage.run]
-source = ["django_mongodb_extensions"]
-omit = [
-    "*/tests/*",
-    "*/__pycache__/*",
+[tool.hatch.build.targets.sdist]
+include = [
+    "django_mongodb_extensions/**",
 ]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "raise AssertionError",
-    "raise NotImplementedError",
-    "if __name__ == .__main__.:",
-    "if TYPE_CHECKING:",
-    "@abstractmethod",
-]
-show_missing = true
-precision = 2
-
-[tool.coverage.html]
-directory = "htmlcov"
