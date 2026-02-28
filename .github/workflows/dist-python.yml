@@ -30,11 +30,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           # Build sdist on lowest supported Python
           python-version: '3.10'
@@ -54,7 +54,7 @@ jobs:
           cd ..
           python -c "import django_mongodb_extensions"
 
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: "dist"
           path: ./dist/*.*
@@ -67,13 +67,13 @@ jobs:
       contents: read
     steps:
       - name: Download all workflow run artifacts
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
       - name: Flatten directory
         working-directory: .
         run: |
           find . -mindepth 2 -type f -exec mv {} . \;
           find . -type d -empty -delete
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: all-dist-${{ github.run_id }}
           path: "./*"
