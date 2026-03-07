@@ -189,7 +189,7 @@ class MQLExplainForm(MQLBaseForm):
         else:
             raise ValueError(f"Unsupported operation: {operation}")
 
-        explain_json = json_util.dumps(explain_result, indent=2)
+        explain_json = json_util.dumps(explain_result, indent=4)
 
         result = [[explain_json]]
         headers = ["MongoDB Explain Output (JSON)"]

@@ -1,6 +1,6 @@
 """Utility functions and constants for MQL panel."""
 
-import pprint
+import json
 import types
 import weakref
 
@@ -125,9 +125,38 @@ def convert_documents_to_table(documents):
         for field in headers:
             value = doc.get(field)
             if value is not None:
-                row.append(json_util.dumps(value))
+                # For simple string values, return them directly without JSON quotes
+                if isinstance(value, str):
+                    row.append({"value": value, "is_json": False})
+                else:
+                    # For complex types, serialize with json_util
+                    serialized = json_util.dumps(value)
+                    # If the result is a single-key object like {"$oid": "..."} or {"$date": "..."},
+                    # extract just the value. For multi-key objects, format with indentation.
+                    try:
+                        parsed = json.loads(serialized)
+                        if isinstance(parsed, dict) and len(parsed) == 1:
+                            # Extract the single value from objects like {"$oid": "..."}, {"$date": "..."}
+                            row.append(
+                                {
+                                    "value": str(list(parsed.values())[0]),
+                                    "is_json": False,
+                                }
+                            )
+                        elif isinstance(parsed, dict) and len(parsed) > 1:
+                            # For multi-key objects, format with indentation for readability
+                            row.append(
+                                {
+                                    "value": json_util.dumps(value, indent=4),
+                                    "is_json": True,
+                                }
+                            )
+                        else:
+                            row.append({"value": serialized, "is_json": False})
+                    except (json.JSONDecodeError, TypeError, AttributeError):
+                        row.append({"value": serialized, "is_json": False})
             else:
-                row.append("")
+                row.append({"value": "", "is_json": False})
         rows.append(row)
 
     return rows, headers
@@ -137,7 +166,7 @@ def format_mql_query(query):
     """Format MQL query for display with pretty-printed arguments.
 
     Takes a query dictionary and formats it into a readable MQL string
-    with pretty-printed arguments.
+    with pretty-printed arguments using JSON format.
 
     Called by:
     - mql_explain() view to format queries for display in explain output
@@ -155,11 +184,10 @@ def format_mql_query(query):
         collection_name, operation, args_list = parse_query_args(query)
         if args_list:
             # For single argument operations, format the argument directly
-            args_formatted = pprint.pformat(
+            # Use json_util.dumps for consistent formatting with Explain Output
+            args_formatted = json_util.dumps(
                 args_list[0] if len(args_list) == 1 else args_list,
-                width=80,
-                compact=False,
-                indent=2,
+                indent=4,
             )
         else:
             args_formatted = ""
@@ -167,8 +195,8 @@ def format_mql_query(query):
         # Reconstruct the MQL string with pretty-printed arguments
         return f"db.{collection_name}.{operation}(\n{args_formatted}\n)"
     except Exception:
-        # parse_query_args raises ValueError; pprint.pformat can raise anything
-        # if a document value's __repr__ is broken, so keep the broad catch.
+        # parse_query_args raises ValueError; json_util.dumps can raise anything
+        # if a document value's serialization fails, so keep the broad catch.
         return mql_string
 
 

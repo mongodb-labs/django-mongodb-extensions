@@ -27,7 +27,13 @@
           {% for row in result %}
             <tr>
               {% for column in row %}
-                <td>{{ column|escape }}</td>
+                <td>
+                  {% if column.is_json %}
+                    <pre style="margin: 0; padding: 0; border: none; background: none; white-space: pre-wrap; word-wrap: break-word; font-family: inherit;">{{ column.value|escape }}</pre>
+                  {% else %}
+                    {{ column.value|escape }}
+                  {% endif %}
+                </td>
               {% endfor %}
             </tr>
           {% endfor %}
