@@ -3,9 +3,6 @@
 A collection of extensions for Django when using MongoDB, inspired by
 [django-extensions](https://github.com/django-extensions/django-extensions).
 
-**Note:** This library does not require django-debug-toolbar, but you will
-need it to use the MQL Panel extension.
-
 ## Extensions
 
 ### MQL Panel for Django Debug Toolbar
@@ -14,6 +11,9 @@ The first extension is the **MQL Panel** for
 [django-debug-toolbar](https://github.com/jazzband/django-debug-toolbar).
 This panel provides detailed insights into MongoDB queries executed during a
 request, similar to how the SQL panel works for relational databases.
+
+> [!TIP]
+> This library does not require django-debug-toolbar, but you will need it to use the MQL Panel extension.
 
 **Features:**
 - View all MongoDB queries (MQL) executed during a request
@@ -93,11 +93,10 @@ your Django Debug Toolbar. It will display:
 
 ### Running Tests
 
-This project uses Django's built-in test framework. To run tests:
+To run tests with [uv](https://docs.astral.sh/uv/), use the following command:
 
 ```bash
-pip install -e '.[test]'
-django-admin test --settings=tests.settings
+uv run --extra test --with django-mongodb-backend django-admin test --settings=tests.settings
 ```
 
 ## License
