@@ -1,5 +1,3 @@
-"""URL configuration for tests."""
-
 from django.urls import include, path
 
 import debug_toolbar

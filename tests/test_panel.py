@@ -27,17 +27,12 @@ class BaseMQLTestCase(TestCase):
     panel_id = MQLPanel.panel_id
 
     def setUp(self):
-        super().setUp()
         self._get_response = lambda request: HttpResponse()
         self.request = rf.get("/")
         self.toolbar = DebugToolbar(self.request, self.get_response)
         self.toolbar.stats = {}
-
-        if self.panel_id:
-            self.panel = self.toolbar.get_panel_by_id(self.panel_id)
-            self.panel.enable_instrumentation()
-        else:
-            self.panel = None
+        self.panel = self.toolbar.get_panel_by_id(self.panel_id)
+        self.panel.enable_instrumentation()
 
     def tearDown(self):
         if self.panel:
@@ -48,27 +43,26 @@ class BaseMQLTestCase(TestCase):
         return self._get_response(request)
 
 
-class MQLPanelTestCase(BaseMQLTestCase):
+class MQLPanelTests(BaseMQLTestCase):
     """Tests for MQLPanel functionality."""
 
     def test_disabled(self):
-        """Test that panel can be disabled via config."""
+        """Panel can be disabled via config."""
         config = {
             "DISABLE_PANELS": {
                 "django_mongodb_extensions.debug_toolbar.panels.mql.panel.MQLPanel"
             }
         }
-        self.assertTrue(self.panel.enabled)
+        self.assertIs(self.panel.enabled, True)
         with self.settings(DEBUG_TOOLBAR_CONFIG=config):
             self.assertFalse(self.panel.enabled)
 
     def test_recording(self):
-        """Test that MQL queries are logged with proper fields."""
+        """MQL queries are logged with proper fields."""
         self.assertEqual(len(self.panel._queries), 0)
 
         mql_call()
 
-        # Ensure query was logged
         self.assertEqual(len(self.panel._queries), 1)
         query = self.panel._queries[0]
         self.assertEqual(query["alias"], "default")
@@ -76,11 +70,10 @@ class MQLPanelTestCase(BaseMQLTestCase):
         self.assertIn("duration", query)
         self.assertIn("stacktrace", query)
 
-        # Ensure the stacktrace is populated
-        self.assertTrue(len(query["stacktrace"]) > 0)
+        self.assertIs(len(query["stacktrace"]) > 0, True)
 
     def test_generate_server_timing(self):
-        """Test server timing stats generation."""
+        """Server timing stats generation."""
         self.assertEqual(len(self.panel._queries), 0)
 
         mql_call()
@@ -89,7 +82,6 @@ class MQLPanelTestCase(BaseMQLTestCase):
         self.panel.generate_stats(self.request, response)
         self.panel.generate_server_timing(self.request, response)
 
-        # Ensure query was logged
         self.assertEqual(len(self.panel._queries), 1)
         query = self.panel._queries[0]
 
@@ -100,40 +92,35 @@ class MQLPanelTestCase(BaseMQLTestCase):
         self.assertEqual(self.panel.get_server_timing_stats(), expected_data)
 
     def test_non_ascii_query(self):
-        """Test that non-ASCII queries are handled properly."""
+        """Non-ASCII queries are handled properly."""
         self.assertEqual(len(self.panel._queries), 0)
 
-        # Non-ASCII text parameters
         list(User.objects.filter(username="thé"))
         self.assertEqual(len(self.panel._queries), 1)
 
-        # Non-ASCII text with special characters
         list(User.objects.filter(username="café"))
         self.assertEqual(len(self.panel._queries), 2)
 
         response = self.panel.process_request(self.request)
         self.panel.generate_stats(self.request, response)
 
-        # Ensure the panel renders correctly
         self.assertIn("café", self.panel.content)
 
     def test_insert_content(self):
-        """Test that the panel only inserts content after generate_stats."""
+        """The panel only inserts content after generate_stats."""
         list(User.objects.filter(username="café"))
         response = self.panel.process_request(self.request)
         self.panel.generate_stats(self.request, response)
-        # Ensure the panel renders correctly
         content = self.panel.content
         self.assertIn("café", content)
 
     @override_settings(DEBUG_TOOLBAR_CONFIG={"ENABLE_STACKTRACES": False})
     def test_disable_stacktraces(self):
-        """Test that stacktraces can be disabled."""
+        """Stacktraces can be disabled."""
         self.assertEqual(len(self.panel._queries), 0)
 
         mql_call()
 
-        # Ensure query was logged
         self.assertEqual(len(self.panel._queries), 1)
         query = self.panel._queries[0]
         self.assertEqual(query["alias"], "default")
@@ -141,11 +128,10 @@ class MQLPanelTestCase(BaseMQLTestCase):
         self.assertIn("duration", query)
         self.assertIn("stacktrace", query)
 
-        # Ensure the stacktrace is empty
-        self.assertEqual([], query["stacktrace"])
+        self.assertEqual(query["stacktrace"], [])
 
     def test_similar_and_duplicate_grouping(self):
-        """Test grouping of similar and duplicate queries.
+        """Grouping of similar and duplicate queries.
 
         In MQL, similar queries are grouped by collection and operation
         (e.g., "db.auth_user.aggregate()"), not by the specific query parameters.
@@ -188,15 +174,15 @@ class MQLPanelTestCase(BaseMQLTestCase):
         self.assertEqual(queries[0]["duplicate_color"], queries[1]["duplicate_color"])
 
     def test_has_content(self):
-        """Test has_content property."""
+        """has_content property."""
         self.assertFalse(self.panel.has_content)
 
         mql_call()
 
-        self.assertTrue(self.panel.has_content)
+        self.assertIs(self.panel.has_content, True)
 
     def test_nav_subtitle(self):
-        """Test nav_subtitle displays query count and time."""
+        """nav_subtitle displays query count and time."""
         mql_call()
 
         response = self.panel.process_request(self.request)
@@ -207,7 +193,7 @@ class MQLPanelTestCase(BaseMQLTestCase):
         self.assertIn("ms", subtitle)
 
     def test_title(self):
-        """Test title displays connection count."""
+        """Title displays connection count."""
         mql_call()
 
         response = self.panel.process_request(self.request)
@@ -218,7 +204,7 @@ class MQLPanelTestCase(BaseMQLTestCase):
         self.assertIn("connection", title)
 
     def test_slow_query_marking(self):
-        """Test that slow queries are marked."""
+        """Slow queries are marked."""
         mql_call()
 
         response = self.panel.process_request(self.request)
@@ -231,7 +217,7 @@ class MQLPanelTestCase(BaseMQLTestCase):
 
     @override_settings(DJDT_MQL_WARNING_THRESHOLD=0)
     def test_slow_query_marking_custom_threshold(self):
-        """Test that slow queries are marked with custom threshold."""
+        """Slow queries are marked with custom threshold."""
         mql_call()
 
         response = self.panel.process_request(self.request)
@@ -239,22 +225,10 @@ class MQLPanelTestCase(BaseMQLTestCase):
 
         query = self.panel._queries[0]
         # With threshold of 0, all queries should be marked as slow
-        self.assertTrue(query["is_slow"])
-
-    def test_is_select_for_find_operation(self):
-        """Test that find operations are marked as select."""
-        list(User.objects.all())
-
-        response = self.panel.process_request(self.request)
-        self.panel.generate_stats(self.request, response)
-
-        # Find operations should be marked as is_select
-        # This allows the Sel/Expl buttons to be shown
-        query = self.panel._queries[0]
-        self.assertIn("is_select", query)
+        self.assertIs(query["is_slow"], True)
 
     def test_database_tracking(self):
-        """Test that database stats are tracked."""
+        """Database stats are tracked."""
         mql_call()
         mql_call()
 
@@ -270,7 +244,7 @@ class MQLPanelTestCase(BaseMQLTestCase):
         self.assertIn("time_spent", db_stats)
 
     def test_query_width_ratio(self):
-        """Test that query width ratios are calculated."""
+        """Query width ratios are calculated."""
         mql_call()
         mql_call()
 

@@ -1,5 +1,3 @@
-"""Forms for MQL panel."""
-
 from bson import json_util
 from django import forms
 from django.core.exceptions import ValidationError
@@ -12,10 +10,10 @@ from debug_toolbar.toolbar import DebugToolbar
 from django_mongodb_extensions.debug_toolbar.panels.mql.utils import (
     MQL_PANEL_ID,
     QueryParts,
-    convert_documents_to_table,
     get_max_select_results,
     parse_query_args,
 )
+import json
 
 
 class MQLBaseForm(SQLSelectForm):
@@ -23,7 +21,7 @@ class MQLBaseForm(SQLSelectForm):
 
     def clean(self):
         # Explicitly call forms.Form.clean() to bypass SQLSelectForm.clean()
-        # which has SQL-specific validation we don't need for MQL queries.
+        # which has SQL-specific validation not needed for MQL queries.
         cleaned_data = forms.Form.clean(self)
 
         request_id = cleaned_data.get("request_id")
@@ -62,19 +60,16 @@ class MQLBaseForm(SQLSelectForm):
     def _get_query_parts(self):
         query_dict = self.cleaned_data["query"]
         alias = query_dict.get("alias", "default")
-        mql_string = query_dict.get("mql", "")
         connection = connections[alias]
         collection_name, operation, args_list = parse_query_args(query_dict)
         db = connection.database
-        collection = db[collection_name]
-
         return QueryParts(
-            query_dict=query_dict,
+            query_dict=self.cleaned_data["query"],
             alias=alias,
-            mql_string=mql_string,
-            connection=connection,
+            mql_string=query_dict.get("mql", ""),
+            connection=connections[alias],
             db=db,
-            collection=collection,
+            collection=db[collection_name],
             collection_name=collection_name,
             operation=operation,
             args_list=args_list,
@@ -111,9 +106,9 @@ class MQLBaseForm(SQLSelectForm):
 
         header, messages = None, []
 
-        for err_type, (h, m) in error_map.items():
+        for err_type, (_header, _messages) in error_map.items():
             if isinstance(error, err_type):
-                header, messages = h, m.copy()
+                header, messages = _header, _messages.copy()
                 break
 
         if not header:
@@ -235,7 +230,71 @@ class MQLSelectForm(MQLBaseForm):
             raise ValueError(f"Unsupported read operation: {operation}")
 
         # Convert documents to table format with columns
-        return convert_documents_to_table(result_docs)
+        return self.convert_documents_to_table(result_docs)
 
     def select(self):
         return self._execute_operation("select", self._execute_select)
+
+    def convert_documents_to_table(documents):
+        """Convert MongoDB documents to table format with columns. Used in the debug
+        toolbar to display query results.
+        """
+        if not documents:
+            return [], []
+
+        # Collect all unique field names and build rows in a single pass
+        all_fields = set()
+        rows_data = []
+
+        for doc in documents:
+            all_fields.update(doc.keys())
+            rows_data.append(doc)
+
+        # Sort fields for consistent column ordering, with _id first if present
+        headers = sorted(all_fields)
+        if "_id" in headers:
+            headers.remove("_id")
+            headers.insert(0, "_id")
+
+        # Convert each document to a row with values for each field
+        rows = []
+        for doc in rows_data:
+            row = []
+            for field in headers:
+                value = doc.get(field)
+                if value is not None:
+                    # For simple string values, return them directly without JSON quotes
+                    if isinstance(value, str):
+                        row.append({"value": value, "is_json": False})
+                    else:
+                        # For complex types, serialize with json_util
+                        serialized = json_util.dumps(value)
+                        # If the result is a single-key object like {"$oid": "..."} or {"$date": "..."},
+                        # extract just the value. For multi-key objects, format with indentation.
+                        try:
+                            parsed = json.loads(serialized)
+                            if isinstance(parsed, dict) and len(parsed) == 1:
+                                # Extract the single value from objects like {"$oid": "..."}, {"$date": "..."}
+                                row.append(
+                                    {
+                                        "value": str(list(parsed.values())[0]),
+                                        "is_json": False,
+                                    }
+                                )
+                            elif isinstance(parsed, dict) and len(parsed) > 1:
+                                # For multi-key objects, format with indentation for readability
+                                row.append(
+                                    {
+                                        "value": json_util.dumps(value, indent=4),
+                                        "is_json": True,
+                                    }
+                                )
+                            else:
+                                row.append({"value": serialized, "is_json": False})
+                        except (json.JSONDecodeError, TypeError, AttributeError):
+                            row.append({"value": serialized, "is_json": False})
+                else:
+                    row.append({"value": "", "is_json": False})
+            rows.append(row)
+
+        return rows, headers

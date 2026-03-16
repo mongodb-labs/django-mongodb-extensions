@@ -1,7 +1,6 @@
-# Django MongoDB Extensions
+# django-mongodb-extensions
 
-A collection of extensions for Django when using MongoDB, inspired by
-[django-extensions](https://github.com/django-extensions/django-extensions).
+Extensions for Django MongoDB Backend
 
 ## Extensions
 
@@ -11,9 +10,6 @@ The first extension is the **MQL Panel** for
 [django-debug-toolbar](https://github.com/jazzband/django-debug-toolbar).
 This panel provides detailed insights into MongoDB queries executed during a
 request, similar to how the SQL panel works for relational databases.
-
-> [!TIP]
-> This library does not require django-debug-toolbar, but you will need it to use the MQL Panel extension.
 
 **Features:**
 - View all MongoDB queries (MQL) executed during a request
@@ -29,6 +25,11 @@ request, similar to how the SQL panel works for relational databases.
 
 - [django-mongodb-backend](https://github.com/mongodb-labs/django-mongodb-backend)
 - [django-debug-toolbar](https://github.com/jazzband/django-debug-toolbar)
+
+### Install Django Debug Toolbar
+
+- If you haven't already, install django-debug-toolbar by following their
+  [installation instructions](https://django-debug-toolbar.readthedocs.io/en/latest/installation.html).
 
 ### Install the Package
 
@@ -70,12 +71,16 @@ DEBUG_TOOLBAR_PANELS = [
 ]
 ```
 
-3. **Optional: Configure maximum select results** (default is 100):
+3. **Optional:** Configure parameters.
 
 ```python
 # Maximum number of documents to return when re-executing select
-# queries
+# queries (default is 100).
 DJDT_MQL_MAX_SELECT_RESULTS = 25
+
+# Queries slower than this threshold (in milliseconds) are highlighted
+# in the debug toolbar (default is 500 ms).
+DEFAULT_MQL_WARNING_THRESHOLD = 1000
 ```
 
 ### Usage
@@ -88,16 +93,6 @@ your Django Debug Toolbar. It will display:
 - **Query details**: Collection name, operation type, and arguments
 - **Explain button**: Click to see the query execution plan
 - **Select button**: Re-execute read operations to see results
-
-## Development
-
-### Running Tests
-
-To run tests with [uv](https://docs.astral.sh/uv/), use the following command:
-
-```bash
-uv run --extra test --with django-mongodb-backend django-admin test --settings=tests.settings
-```
 
 ## License
 

@@ -133,15 +133,6 @@ class MQLPanel(SQLPanel):
         return operation in MQL_READ_OPERATIONS
 
     @staticmethod
-    def _query_key_duplicate(query):
-        """Generate a key for identifying duplicate queries.
-
-        Duplicate queries are identical queries including their arguments.
-        Uses the full mql string for exact matching.
-        """
-        return query.get("mql", "")
-
-    @staticmethod
     def _query_key_similar(query):
         """Generate a key for grouping similar queries.
 
@@ -203,7 +194,7 @@ class MQLPanel(SQLPanel):
                 except KeyError:
                     pass
 
-                dup_key = self._query_key_duplicate(query)
+                dup_key = query.get("mql", "")
                 duplicate_query_groups[(alias, dup_key)].append(query)
 
                 query["is_slow"] = query["duration"] > mql_warning_threshold

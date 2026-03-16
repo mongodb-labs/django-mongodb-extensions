@@ -1,6 +1,5 @@
 """Utility functions and constants for MQL panel."""
 
-import json
 import types
 import weakref
 
@@ -32,12 +31,11 @@ DEFAULT_MQL_WARNING_THRESHOLD = 500
 # These are the only MongoDB read operations that django-mongodb-backend actually
 # uses, so they're the only ones supported in the debug toolbar.
 MQL_READ_OPERATIONS = {
-    "find",
     "aggregate",
 }
 
-# Track which connections have been patched to avoid double-patching
-# Use WeakSet to automatically clean up references to closed connections
+# Track which connections have been patched to avoid double-patching.
+# Use WeakSet to automatically clean up references to closed connections.
 _patched_connections = weakref.WeakSet()
 
 
@@ -95,71 +93,6 @@ class DebugToolbarWrapper(OperationDebugWrapper):
                 mql_operation=op.lstrip("."),
                 mql_args_json=args_json,
             )
-
-
-def convert_documents_to_table(documents):
-    """Convert MongoDB documents to table format with columns. Used in the debug
-    toolbar to display query results.
-    """
-    if not documents:
-        return [], []
-
-    # Collect all unique field names and build rows in a single pass
-    all_fields = set()
-    rows_data = []
-
-    for doc in documents:
-        all_fields.update(doc.keys())
-        rows_data.append(doc)
-
-    # Sort fields for consistent column ordering, with _id first if present
-    headers = sorted(all_fields)
-    if "_id" in headers:
-        headers.remove("_id")
-        headers.insert(0, "_id")
-
-    # Convert each document to a row with values for each field
-    rows = []
-    for doc in rows_data:
-        row = []
-        for field in headers:
-            value = doc.get(field)
-            if value is not None:
-                # For simple string values, return them directly without JSON quotes
-                if isinstance(value, str):
-                    row.append({"value": value, "is_json": False})
-                else:
-                    # For complex types, serialize with json_util
-                    serialized = json_util.dumps(value)
-                    # If the result is a single-key object like {"$oid": "..."} or {"$date": "..."},
-                    # extract just the value. For multi-key objects, format with indentation.
-                    try:
-                        parsed = json.loads(serialized)
-                        if isinstance(parsed, dict) and len(parsed) == 1:
-                            # Extract the single value from objects like {"$oid": "..."}, {"$date": "..."}
-                            row.append(
-                                {
-                                    "value": str(list(parsed.values())[0]),
-                                    "is_json": False,
-                                }
-                            )
-                        elif isinstance(parsed, dict) and len(parsed) > 1:
-                            # For multi-key objects, format with indentation for readability
-                            row.append(
-                                {
-                                    "value": json_util.dumps(value, indent=4),
-                                    "is_json": True,
-                                }
-                            )
-                        else:
-                            row.append({"value": serialized, "is_json": False})
-                    except (json.JSONDecodeError, TypeError, AttributeError):
-                        row.append({"value": serialized, "is_json": False})
-            else:
-                row.append({"value": "", "is_json": False})
-        rows.append(row)
-
-    return rows, headers
 
 
 def format_mql_query(query):
@@ -238,7 +171,6 @@ def parse_query_args(query_dict):
         raise ValueError(
             "Query does not have structured data. "
             "Only queries with structured data can be re-executed for security reasons. "
-            "This query was likely logged before the security improvements were implemented."
         )
 
     collection_name = query_dict["mql_collection"]
@@ -249,8 +181,7 @@ def parse_query_args(query_dict):
         raise ValueError("Missing required fields: collection_name or operation")
 
     # If args_json is None, serialization failed when the query was logged.
-    # Treat this as unreplayable to avoid re-executing a different query
-    # (e.g., find({}) instead of the actual query that was run).
+    # Treat this as unreplayable to avoid re-executing a different query.
     if args_json is None:
         raise ValueError(
             "Query arguments could not be serialized when logged. "

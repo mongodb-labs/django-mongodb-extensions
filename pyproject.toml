@@ -9,9 +9,6 @@ description = "Django MongoDB Extensions"
 readme = "README.md"
 license = { file="LICENSE" }
 requires-python = ">=3.10"
-dependencies = [
-    "django-mongodb-backend",
-]
 
 [project.optional-dependencies]
 test = [
