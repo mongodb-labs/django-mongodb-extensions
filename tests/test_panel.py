@@ -259,3 +259,18 @@ class MQLPanelTests(BaseMQLTestCase):
         # Width ratios should sum to approximately 100
         total_width = sum(q["width_ratio"] for q in self.panel._queries)
         self.assertAlmostEqual(total_width, 100, places=5)
+
+
+class ConvertDocumentsToTableTests(TestCase):
+    def setUp(self):
+        from django_mongodb_extensions.debug_toolbar.panels.mql.forms import (
+            MQLSelectForm,
+        )
+
+        self.form = MQLSelectForm()
+
+    def test_empty_documents(self):
+        """Empty document list returns empty rows and headers."""
+        rows, headers = self.form.convert_documents_to_table([])
+        self.assertEqual(rows, [])
+        self.assertEqual(headers, [])

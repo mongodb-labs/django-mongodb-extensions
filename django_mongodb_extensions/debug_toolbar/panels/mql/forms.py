@@ -202,7 +202,7 @@ class MQLSelectForm(MQLBaseForm):
     def select(self):
         return self._execute_operation("select", self._execute_select)
 
-    def convert_documents_to_table(documents):
+    def convert_documents_to_table(self, documents):
         """Convert MongoDB documents to table format with columns. Used in the debug
         toolbar to display query results.
         """
