@@ -1,9 +1,3 @@
-"""Tests for MQL Panel.
-
-Equivalent tests for MQL Panel based on django-debug-toolbar's SQL panel tests.
-See: django-debug-toolbar/tests/panels/test_sql.py
-"""
-
 from django.contrib.auth.models import User
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase, override_settings
@@ -22,8 +16,6 @@ def mql_call():
 
 
 class BaseMQLTestCase(TestCase):
-    """Base test case for MQL Panel tests."""
-
     panel_id = MQLPanel.panel_id
 
     def setUp(self):
@@ -44,10 +36,7 @@ class BaseMQLTestCase(TestCase):
 
 
 class MQLPanelTests(BaseMQLTestCase):
-    """Tests for MQLPanel functionality."""
-
     def test_disabled(self):
-        """Panel can be disabled via config."""
         config = {
             "DISABLE_PANELS": {
                 "django_mongodb_extensions.debug_toolbar.panels.mql.panel.MQLPanel"
@@ -58,33 +47,26 @@ class MQLPanelTests(BaseMQLTestCase):
             self.assertFalse(self.panel.enabled)
 
     def test_recording(self):
-        """MQL queries are logged with proper fields."""
         self.assertEqual(len(self.panel._queries), 0)
-
         mql_call()
-
         self.assertEqual(len(self.panel._queries), 1)
         query = self.panel._queries[0]
         self.assertEqual(query["alias"], "default")
-        self.assertIn("mql", query)
-        self.assertIn("duration", query)
-        self.assertIn("stacktrace", query)
-
-        self.assertIs(len(query["stacktrace"]) > 0, True)
+        self.assertIsInstance(query["mql"], str)
+        self.assertGreater(len(query["mql"]), 0)
+        self.assertIsInstance(query["duration"], (int, float))
+        self.assertGreaterEqual(query["duration"], 0)
+        self.assertIsInstance(query["stacktrace"], list)
+        self.assertGreater(len(query["stacktrace"]), 0)
 
     def test_generate_server_timing(self):
-        """Server timing stats generation."""
         self.assertEqual(len(self.panel._queries), 0)
-
         mql_call()
-
         response = self.panel.process_request(self.request)
         self.panel.generate_stats(self.request, response)
         self.panel.generate_server_timing(self.request, response)
-
         self.assertEqual(len(self.panel._queries), 1)
         query = self.panel._queries[0]
-
         expected_data = {
             "mql_time": {"title": "MQL 1 queries", "value": query["duration"]}
         }
@@ -92,22 +74,16 @@ class MQLPanelTests(BaseMQLTestCase):
         self.assertEqual(self.panel.get_server_timing_stats(), expected_data)
 
     def test_non_ascii_query(self):
-        """Non-ASCII queries are handled properly."""
         self.assertEqual(len(self.panel._queries), 0)
-
         list(User.objects.filter(username="thé"))
         self.assertEqual(len(self.panel._queries), 1)
-
         list(User.objects.filter(username="café"))
         self.assertEqual(len(self.panel._queries), 2)
-
         response = self.panel.process_request(self.request)
         self.panel.generate_stats(self.request, response)
-
         self.assertIn("café", self.panel.content)
 
     def test_insert_content(self):
-        """The panel only inserts content after generate_stats."""
         list(User.objects.filter(username="café"))
         response = self.panel.process_request(self.request)
         self.panel.generate_stats(self.request, response)
@@ -116,18 +92,15 @@ class MQLPanelTests(BaseMQLTestCase):
 
     @override_settings(DEBUG_TOOLBAR_CONFIG={"ENABLE_STACKTRACES": False})
     def test_disable_stacktraces(self):
-        """Stacktraces can be disabled."""
         self.assertEqual(len(self.panel._queries), 0)
-
         mql_call()
-
         self.assertEqual(len(self.panel._queries), 1)
         query = self.panel._queries[0]
         self.assertEqual(query["alias"], "default")
-        self.assertIn("mql", query)
-        self.assertIn("duration", query)
-        self.assertIn("stacktrace", query)
-
+        self.assertIsInstance(query["mql"], str)
+        self.assertGreater(len(query["mql"]), 0)
+        self.assertIsInstance(query["duration"], (int, float))
+        self.assertGreaterEqual(query["duration"], 0)
         self.assertEqual(query["stacktrace"], [])
 
     def test_similar_and_duplicate_grouping(self):
@@ -138,78 +111,54 @@ class MQLPanelTests(BaseMQLTestCase):
         This differs from SQL where the query pattern matters.
         """
         self.assertEqual(len(self.panel._queries), 0)
-
         # Create queries that should be grouped
         # Use username filter since MongoDB uses ObjectId for id
         User.objects.filter(username="user1").count()  # Query A
         User.objects.filter(username="user1").count()  # Duplicate of Query A
         User.objects.filter(username="user2").count()  # Similar to A (different params)
-
         response = self.panel.process_request(self.request)
         self.panel.generate_stats(self.request, response)
-
         self.assertEqual(len(self.panel._queries), 3)
-
         queries = self.panel._queries
-
         # First two queries are duplicates (identical MQL string)
         query = queries[0]
-        self.assertIn("similar_count", query)
+        self.assertEqual(query["similar_count"], 3)
         self.assertEqual(query["duplicate_count"], 2)
-
         query = queries[1]
-        self.assertIn("similar_count", query)
+        self.assertEqual(query["similar_count"], 3)
         self.assertEqual(query["duplicate_count"], 2)
-
         # Third query is similar (same operation) but not duplicate (different params)
         query = queries[2]
-        self.assertIn("similar_count", query)
+        self.assertEqual(query["similar_count"], 3)
         self.assertNotIn("duplicate_count", query)
-
-        # All three should have the same similar_count
-        self.assertEqual(queries[0]["similar_count"], queries[1]["similar_count"])
-        self.assertEqual(queries[0]["similar_count"], queries[2]["similar_count"])
-
         # Duplicate queries should share the same duplicate_color
         self.assertEqual(queries[0]["duplicate_color"], queries[1]["duplicate_color"])
 
-    def test_has_content(self):
-        """has_content property."""
+    def test_has_content_property(self):
         self.assertFalse(self.panel.has_content)
-
         mql_call()
-
         self.assertIs(self.panel.has_content, True)
 
     def test_nav_subtitle(self):
-        """nav_subtitle displays query count and time."""
         mql_call()
-
         response = self.panel.process_request(self.request)
         self.panel.generate_stats(self.request, response)
-
         subtitle = self.panel.nav_subtitle
         self.assertIn("1 query", subtitle)
         self.assertIn("ms", subtitle)
 
     def test_title(self):
-        """Title displays connection count."""
         mql_call()
-
         response = self.panel.process_request(self.request)
         self.panel.generate_stats(self.request, response)
-
         title = self.panel.title
         self.assertIn("MQL queries from", title)
         self.assertIn("connection", title)
 
     def test_slow_query_marking(self):
-        """Slow queries are marked."""
         mql_call()
-
         response = self.panel.process_request(self.request)
         self.panel.generate_stats(self.request, response)
-
         query = self.panel._queries[0]
         # Query should not be marked as slow (threshold is 500ms by default)
         self.assertIn("is_slow", query)
@@ -217,26 +166,19 @@ class MQLPanelTests(BaseMQLTestCase):
 
     @override_settings(DJDT_MQL_WARNING_THRESHOLD=0)
     def test_slow_query_marking_custom_threshold(self):
-        """Slow queries are marked with custom threshold."""
         mql_call()
-
         response = self.panel.process_request(self.request)
         self.panel.generate_stats(self.request, response)
-
         query = self.panel._queries[0]
         # With threshold of 0, all queries should be marked as slow
         self.assertIs(query["is_slow"], True)
 
     def test_database_tracking(self):
-        """Database stats are tracked."""
         mql_call()
         mql_call()
-
         response = self.panel.process_request(self.request)
         self.panel.generate_stats(self.request, response)
-
         self.assertEqual(len(self.panel._queries), 2)
-
         # Check that database stats are tracked
         self.assertIn("default", self.panel._databases)
         db_stats = self.panel._databases["default"]
@@ -244,18 +186,14 @@ class MQLPanelTests(BaseMQLTestCase):
         self.assertIn("time_spent", db_stats)
 
     def test_query_width_ratio(self):
-        """Query width ratios are calculated."""
         mql_call()
         mql_call()
-
         response = self.panel.process_request(self.request)
         self.panel.generate_stats(self.request, response)
-
         for query in self.panel._queries:
             self.assertIn("width_ratio", query)
             self.assertIn("start_offset", query)
             self.assertIn("end_offset", query)
-
         # Width ratios should sum to approximately 100
         total_width = sum(q["width_ratio"] for q in self.panel._queries)
         self.assertAlmostEqual(total_width, 100, places=5)
@@ -274,3 +212,26 @@ class ConvertDocumentsToTableTests(TestCase):
         rows, headers = self.form.convert_documents_to_table([])
         self.assertEqual(rows, [])
         self.assertEqual(headers, [])
+
+    def test_handle_operation_error_format(self):
+        """Error return format matches convert_documents_to_table format."""
+        error = ValueError("Test error")
+        mql_string = "db.test.aggregate([])"
+        rows, headers = self.form._handle_operation_error(error, mql_string, "select")
+
+        # Should return one row with one cell
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(len(rows[0]), 1)
+
+        # Cell should be a dict with 'value' and 'is_json' keys
+        cell = rows[0][0]
+        self.assertIsInstance(cell, dict)
+        self.assertIn("value", cell)
+        self.assertIn("is_json", cell)
+        self.assertIsInstance(cell["value"], str)
+        self.assertIsInstance(cell["is_json"], bool)
+        self.assertFalse(cell["is_json"])
+
+        # Should have one header
+        self.assertEqual(len(headers), 1)
+        self.assertIsInstance(headers[0], str)

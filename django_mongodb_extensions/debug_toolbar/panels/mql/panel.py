@@ -55,7 +55,6 @@ class MQLPanel(SQLPanel):
         self._mql_time += kwargs["duration"]
 
     # Implement Panel API
-
     nav_title = _("MQL")
     template = "debug_toolbar/panels/mql.html"
 
@@ -115,7 +114,6 @@ class MQLPanel(SQLPanel):
         if len(hex_color) != 6:
             # Return a default gray color if invalid
             return [128, 128, 128]
-
         try:
             # Convert hex to RGB
             return [int(hex_color[i : i + 2], 16) for i in (0, 2, 4)]
@@ -174,31 +172,23 @@ class MQLPanel(SQLPanel):
     def generate_stats(self, request, response):
         similar_query_groups = defaultdict(list)
         duplicate_query_groups = defaultdict(list)
-
         if self._queries:
             mql_warning_threshold = get_mql_warning_threshold()
-
             db_colors = contrasting_color_generator()
             for db in self._databases.values():
                 hex_color = next(db_colors)
                 db["rgb_color"] = self._hex_to_rgb(hex_color)
-
             width_ratio_tally = 0
-
             for query in self._queries:
                 alias = query["alias"]
-
                 try:
                     sim_key = self._query_key_similar(query)
                     similar_query_groups[(alias, sim_key)].append(query)
                 except KeyError:
                     pass
-
                 dup_key = query.get("mql", "")
                 duplicate_query_groups[(alias, dup_key)].append(query)
-
                 query["is_slow"] = query["duration"] > mql_warning_threshold
-
                 operation = query.get("mql_operation", "")
                 # Only show Sel/Expl buttons if it's a read operation AND
                 # the args were successfully serialized (mql_args_json is not None).
@@ -206,7 +196,6 @@ class MQLPanel(SQLPanel):
                 query["is_select"] = (
                     self._is_read_operation(operation) and args_json is not None
                 )
-
                 query["rgb_color"] = self._databases[alias]["rgb_color"]
                 try:
                     query["width_ratio"] = (query["duration"] / self._mql_time) * 100
@@ -215,7 +204,6 @@ class MQLPanel(SQLPanel):
                 query["start_offset"] = width_ratio_tally
                 query["end_offset"] = query["width_ratio"] + query["start_offset"]
                 width_ratio_tally += query["width_ratio"]
-
         group_colors = contrasting_color_generator()
         self._process_query_groups(
             similar_query_groups, self._databases, group_colors, "similar"
@@ -223,7 +211,6 @@ class MQLPanel(SQLPanel):
         self._process_query_groups(
             duplicate_query_groups, self._databases, group_colors, "duplicate"
         )
-
         self.record_stats(
             {
                 "databases": sorted(
@@ -263,5 +250,4 @@ class MQLPanel(SQLPanel):
             )
             query["stacktrace"] = render_stacktrace(query["stacktrace"])
             query["trace_color"] = trace_colors[query["stacktrace"]]
-
         return render_to_string(self.template, stats)

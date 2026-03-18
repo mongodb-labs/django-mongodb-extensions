@@ -1,5 +1,3 @@
-"""Utility functions and constants for MQL panel."""
-
 import types
 import weakref
 
@@ -82,7 +80,6 @@ class DebugToolbarWrapper(OperationDebugWrapper):
             args_json = json_util.dumps(list(args))
         except (TypeError, ValueError):
             args_json = None
-
         if self.logger:
             self.logger.record(
                 alias=self.db.alias,
@@ -124,7 +121,6 @@ def format_mql_query(query):
             )
         else:
             args_formatted = ""
-
         # Reconstruct the MQL string with pretty-printed arguments
         return f"db.{collection_name}.{operation}(\n{args_formatted}\n)"
     except Exception:
@@ -172,14 +168,11 @@ def parse_query_args(query_dict):
             "Query does not have structured data. "
             "Only queries with structured data can be re-executed for security reasons. "
         )
-
     collection_name = query_dict["mql_collection"]
     operation = query_dict["mql_operation"]
     args_json = query_dict["mql_args_json"]
-
     if not collection_name or not operation:
         raise ValueError("Missing required fields: collection_name or operation")
-
     # If args_json is None, serialization failed when the query was logged.
     # Treat this as unreplayable to avoid re-executing a different query.
     if args_json is None:
@@ -187,7 +180,6 @@ def parse_query_args(query_dict):
             "Query arguments could not be serialized when logged. "
             "This query cannot be re-executed because the original arguments are unavailable."
         )
-
     if args_json != "":
         try:
             args_list = json_util.loads(args_json)
@@ -213,7 +205,6 @@ def patch_get_collection(connection):
     """
     if connection in _patched_connections:
         return
-
     if not hasattr(connection, "_original_get_collection"):
         # Save the original method only if it hasn't been saved already
         connection._original_get_collection = connection.get_collection
@@ -228,7 +219,6 @@ def patch_get_collection(connection):
             return self._original_get_collection(name, **kwargs)
 
     connection.get_collection = types.MethodType(get_collection, connection)
-
     # Only add to patched connections after successful patching
     _patched_connections.add(connection)
 
@@ -240,13 +230,6 @@ def patch_new_connection(sender, connection, **kwargs):
 
     This function is connected to the connection_created signal in panel.py:
         connection_created.connect(patch_new_connection)
-
-    When Django creates a new database connection, this handler is called. It checks
-    if the connection is a MongoDB connection (by checking for 'database' and
-    'get_collection' attributes) and if so, patches it to enable query logging.
-
-    This ensures that all MongoDB connections are automatically instrumented without
-    requiring manual patching, even for connections created after the panel is loaded.
     """
     if hasattr(connection, "database") and hasattr(connection, "get_collection"):
         patch_get_collection(connection)
