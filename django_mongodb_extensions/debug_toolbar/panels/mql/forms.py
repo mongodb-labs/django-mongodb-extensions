@@ -162,25 +162,9 @@ class MQLExplainForm(MQLBaseForm):
             {"aggregate": collection_name, "pipeline": pipeline, "cursor": {}},
         )
 
-    def _execute_find(self, collection, args_list):
-        if len(args_list) >= 2:
-            filter_doc, projection = args_list[0], args_list[1]
-            cursor = collection.find(filter_doc, projection)
-        elif len(args_list) == 1:
-            filter_doc = args_list[0]
-            cursor = collection.find(filter_doc)
-        else:
-            cursor = collection.find({})
-        try:
-            return cursor.explain()
-        finally:
-            cursor.close()
-
     def _execute_explain(self, db, collection, collection_name, operation, args_list):
         if operation == "aggregate":
             explain_result = self._execute_aggregate(db, collection_name, args_list)
-        elif operation == "find":
-            explain_result = self._execute_find(collection, args_list)
         else:
             raise ValueError(f"Unsupported operation: {operation}")
 
@@ -206,26 +190,9 @@ class MQLSelectForm(MQLBaseForm):
                 result_docs.append(doc)
         return result_docs
 
-    def _execute_find(self, collection, args_list):
-        max_results = get_max_select_results()
-        if len(args_list) >= 2:
-            filter_doc, projection = args_list[0], args_list[1]
-            cursor = collection.find(filter_doc, projection)
-        elif len(args_list) == 1:
-            filter_doc = args_list[0]
-            cursor = collection.find(filter_doc)
-        else:
-            cursor = collection.find({})
-        try:
-            return list(cursor.limit(max_results))
-        finally:
-            cursor.close()
-
     def _execute_select(self, db, collection, collection_name, operation, args_list):
         if operation == "aggregate":
             result_docs = self._execute_aggregate(collection, args_list)
-        elif operation == "find":
-            result_docs = self._execute_find(collection, args_list)
         else:
             raise ValueError(f"Unsupported read operation: {operation}")
 
