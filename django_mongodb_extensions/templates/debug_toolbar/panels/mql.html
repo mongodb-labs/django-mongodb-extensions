@@ -74,6 +74,17 @@
               {% if query.stacktrace %}
                 <pre class="djdt-stack">{{ query.stacktrace }}</pre>
               {% endif %}
+              {% if query.template_info %}
+                <table>
+                  {% for line in query.template_info.context %}
+                    <tr>
+                      <td>{{ line.num }}</td>
+                      <td><code {% if line.highlight %}class="djdt-highlighted"{% endif %}>{{ line.content }}</code></td>
+                    </tr>
+                  {% endfor %}
+                </table>
+                <p><strong>{{ query.template_info.name|default:_("(unknown)") }}</strong></p>
+              {% endif %}
             </div>
           </td>
         </tr>

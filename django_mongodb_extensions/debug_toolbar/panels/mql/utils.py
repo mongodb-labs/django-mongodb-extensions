@@ -2,7 +2,7 @@ import types
 import weakref
 
 from bson import json_util
-from debug_toolbar.utils import get_stack_trace
+from debug_toolbar.utils import get_stack_trace, get_template_info
 from django_mongodb_backend.utils import OperationDebugWrapper
 
 MQL_PANEL_ID = "MQLPanel"
@@ -61,6 +61,7 @@ class DebugToolbarWrapper(OperationDebugWrapper):
                 mql=operation,
                 duration=duration,
                 stacktrace=get_stack_trace(),
+                template_info=get_template_info(),
                 mql_collection=self.collection_name.strip("."),
                 mql_operation=op.lstrip("."),
                 mql_args_json=args_json,
