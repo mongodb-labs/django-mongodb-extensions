@@ -5,7 +5,7 @@ from django.http import HttpResponseBadRequest, JsonResponse
 from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_exempt
 
-from .forms import MQLExplainForm, MQLSelectForm
+from .forms import MQLAggregateForm, MQLExplainForm
 from .utils import format_mql_query
 
 
@@ -37,11 +37,11 @@ def mql_explain(request):
 @login_not_required
 @require_show_toolbar
 @render_with_toolbar_language
-def mql_select(request):
+def mql_aggregate(request):
     verified_data = get_signed_data(request)
     if not verified_data:
         return HttpResponseBadRequest("Invalid signature")
-    form = MQLSelectForm(verified_data)
+    form = MQLAggregateForm(verified_data)
     if form.is_valid():
         query = form.cleaned_data["query"]
         result, headers = form.select()
@@ -53,6 +53,6 @@ def mql_select(request):
             "headers": headers,
             "alias": query["alias"],
         }
-        content = render_to_string("debug_toolbar/panels/mql_select.html", context)
+        content = render_to_string("debug_toolbar/panels/mql_aggregate.html", context)
         return JsonResponse({"content": content})
     return HttpResponseBadRequest("Form errors")

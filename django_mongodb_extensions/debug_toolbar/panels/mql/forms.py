@@ -173,7 +173,7 @@ class MQLExplainForm(MQLBaseForm):
         return self._execute_operation("explain", self._execute_explain)
 
 
-class MQLSelectForm(MQLBaseForm):
+class MQLAggregateForm(MQLBaseForm):
     def _execute_aggregate(self, collection, args_list):
         pipeline = args_list[0] if args_list else []
         result_docs = []

@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase, override_settings
 
-from django_mongodb_extensions.debug_toolbar.panels.mql.forms import MQLSelectForm
+from django_mongodb_extensions.debug_toolbar.panels.mql.forms import MQLAggregateForm
 from django_mongodb_extensions.debug_toolbar.panels.mql.panel import MQLPanel
 from django_mongodb_extensions.debug_toolbar.panels.mql.utils import parse_query_args
 
@@ -150,7 +150,7 @@ class MQLPanelTests(BaseMQLTestCase):
 
 class ConvertDocumentsToTableTests(TestCase):
     def setUp(self):
-        self.form = MQLSelectForm()
+        self.form = MQLAggregateForm()
 
     def test_empty_documents(self):
         """Empty document list returns empty rows and headers."""
@@ -162,7 +162,9 @@ class ConvertDocumentsToTableTests(TestCase):
         """Error return format matches convert_documents_to_table format."""
         error = ValueError("Test error")
         mql_string = "db.test.aggregate([])"
-        rows, headers = self.form._handle_operation_error(error, mql_string, "select")
+        rows, headers = self.form._handle_operation_error(
+            error, mql_string, "aggregate"
+        )
 
         # Should return one row with one cell
         self.assertEqual(len(rows), 1)
