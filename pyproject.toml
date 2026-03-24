@@ -15,10 +15,8 @@ test = [
     "django-debug-toolbar",
 ]
 
+[tool.ruff.lint]
+select = ["I"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["django_mongodb_extensions"]
-
-[tool.hatch.build.targets.sdist]
-include = [
-    "django_mongodb_extensions/**",
-]

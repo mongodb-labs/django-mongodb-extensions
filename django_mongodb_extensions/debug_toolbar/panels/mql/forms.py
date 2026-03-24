@@ -1,23 +1,23 @@
+import json
+
 from bson import json_util
+from debug_toolbar.panels.sql.forms import SQLSelectForm
+from debug_toolbar.toolbar import DebugToolbar
 from django import forms
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import connections
 from django.utils.translation import gettext_lazy as _
 from pymongo import errors as pymongo_errors
-from debug_toolbar.panels.sql.forms import SQLSelectForm
-from debug_toolbar.toolbar import DebugToolbar
+
 from django_mongodb_extensions.debug_toolbar.panels.mql.utils import (
     MQL_PANEL_ID,
     QueryParts,
-    get_max_select_results,
     parse_query_args,
 )
-import json
 
 
 class MQLBaseForm(SQLSelectForm):
-    """Shared validation and helpers."""
-
     def clean(self):
         # Explicitly call forms.Form.clean() to bypass SQLSelectForm.clean()
         # which has SQL-specific validation not needed for MQL queries.
@@ -58,10 +58,10 @@ class MQLBaseForm(SQLSelectForm):
         collection_name, operation, args_list = parse_query_args(query_dict)
         db = connection.database
         return QueryParts(
-            query_dict=self.cleaned_data["query"],
+            query_dict=query_dict,
             alias=alias,
             mql_string=query_dict.get("mql", ""),
-            connection=connections[alias],
+            connection=connection,
             db=db,
             collection=db[collection_name],
             collection_name=collection_name,
@@ -144,7 +144,9 @@ class MQLBaseForm(SQLSelectForm):
                 parts.operation,
                 parts.args_list,
             )
-        except Exception as e:
+        except (ValueError, pymongo_errors.PyMongoError) as e:
+            # ValueError: unsupported operation or unserializable args.
+            # PyMongoError: any MongoDB driver error during execution.
             return self._handle_operation_error(e, mql_string, operation_type)
 
 
@@ -174,7 +176,7 @@ class MQLSelectForm(MQLBaseForm):
     def _execute_aggregate(self, collection, args_list):
         pipeline = args_list[0] if args_list else []
         result_docs = []
-        max_results = get_max_select_results()
+        max_results = getattr(settings, "DJDT_MQL_MAX_SELECT_RESULTS", 100)
         with collection.aggregate(pipeline) as cursor:
             for i, doc in enumerate(cursor):
                 if i >= max_results:
@@ -187,17 +189,13 @@ class MQLSelectForm(MQLBaseForm):
             result_docs = self._execute_aggregate(collection, args_list)
         else:
             raise ValueError(f"Unsupported read operation: {operation}")
-        # Convert documents to table format with columns
         return self.convert_documents_to_table(result_docs)
 
     def select(self):
         return self._execute_operation("select", self._execute_select)
 
     def _format_cell_value(self, value):
-        """Format a single cell value for table display.
-
-        Returns a dict with 'value' (str) and 'is_json' (bool) keys.
-        """
+        """Format a single cell value for table display."""
         if value is None:
             return {"value": "", "is_json": False}
         # Handle primitive types directly without JSON serialization
@@ -206,24 +204,24 @@ class MQLSelectForm(MQLBaseForm):
         # For complex types (ObjectId, datetime, dicts, lists, etc.), use json_util
         try:
             serialized = json_util.dumps(value)
-            parsed = json.loads(serialized)
-            # Extract value from single-key BSON extended JSON objects like {"$oid": "..."}
-            if isinstance(parsed, dict) and len(parsed) == 1:
-                key, val = next(iter(parsed.items()))
-                return {"value": str(val), "is_json": False}
-            # For multi-key objects, format with indentation for readability
-            if isinstance(parsed, dict) and len(parsed) > 1:
-                return {"value": json.dumps(parsed, indent=4), "is_json": True}
-            # For lists and other types, use compact serialization
-            return {"value": serialized, "is_json": False}
-        except (json.JSONDecodeError, TypeError, AttributeError):
-            # Fallback: convert to string
+        except (TypeError, AttributeError):
             return {"value": str(value), "is_json": False}
+        try:
+            parsed = json.loads(serialized)
+        except json.JSONDecodeError:
+            return {"value": serialized, "is_json": False}
+        # Extract value from single-key BSON extended JSON objects like {"$oid": "..."}
+        if isinstance(parsed, dict) and len(parsed) == 1:
+            key, val = next(iter(parsed.items()))
+            return {"value": str(val), "is_json": False}
+        # For multi-key objects, format with indentation for readability
+        if isinstance(parsed, dict) and len(parsed) > 1:
+            return {"value": json.dumps(parsed, indent=4), "is_json": True}
+        # For lists and other types, use compact serialization
+        return {"value": serialized, "is_json": False}
 
     def convert_documents_to_table(self, documents):
-        """Convert MongoDB documents to table format with columns. Used in the debug
-        toolbar to display query results.
-        """
+        """Convert MongoDB documents to a table of rows and headers."""
         if not documents:
             return [], []
         # Collect all unique field names

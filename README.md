@@ -12,9 +12,10 @@ This panel provides detailed insights into MongoDB queries executed during a
 request, similar to how the SQL panel works for relational databases.
 
 **Features:**
+
 - View all MongoDB queries (MQL) executed during a request
 - See query execution time and identify slow queries
-- Re-execute read operations (find, aggregate, etc.) directly from the toolbar
+- Re-execute read operations (aggregate, etc.) directly from the toolbar
 - Explain query execution plans
 - Color-coded query grouping for easy identification
 - Detailed query statistics and performance metrics
@@ -26,10 +27,8 @@ request, similar to how the SQL panel works for relational databases.
 - [django-mongodb-backend](https://github.com/mongodb-labs/django-mongodb-backend)
 - [django-debug-toolbar](https://github.com/jazzband/django-debug-toolbar)
 
-### Install Django Debug Toolbar
-
-- If you haven't already, install django-debug-toolbar by following their
-  [installation instructions](https://django-debug-toolbar.readthedocs.io/en/latest/installation.html).
+First, install and configure django-debug-toolbar by following their
+[installation instructions](https://django-debug-toolbar.readthedocs.io/en/latest/installation.html).
 
 ### Install the Package
 
@@ -60,8 +59,8 @@ DEBUG_TOOLBAR_PANELS = [
     'debug_toolbar.panels.settings.SettingsPanel',
     'debug_toolbar.panels.headers.HeadersPanel',
     'debug_toolbar.panels.request.RequestPanel',
-    # Add this
-    'django_mongodb_extensions.debug_toolbar.panels.MQLPanel',
+    # Add this:
+    'django_mongodb_extensions.debug_toolbar.panels.mql.panel.MQLPanel',
     'debug_toolbar.panels.templates.TemplatesPanel',
     'debug_toolbar.panels.staticfiles.StaticFilesPanel',
     'debug_toolbar.panels.cache.CachePanel',
@@ -80,19 +79,8 @@ DJDT_MQL_MAX_SELECT_RESULTS = 25
 
 # Queries slower than this threshold (in milliseconds) are highlighted
 # in the debug toolbar (default is 500 ms).
-DEFAULT_MQL_WARNING_THRESHOLD = 1000
+DJDT_MQL_WARNING_THRESHOLD = 1000
 ```
-
-### Usage
-
-Once installed and configured, the MQL Panel will automatically appear in
-your Django Debug Toolbar. It will display:
-
-- **Query list**: All MongoDB operations executed during the request
-- **Execution time**: Time taken for each query
-- **Query details**: Collection name, operation type, and arguments
-- **Explain button**: Click to see the query execution plan
-- **Select button**: Re-execute read operations to see results
 
 ## License
 

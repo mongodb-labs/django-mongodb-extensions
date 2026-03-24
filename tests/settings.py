@@ -14,13 +14,12 @@ INSTALLED_APPS = [
 DATABASES = {
     "default": {
         "ENGINE": "django_mongodb_backend",
-        "NAME": "test_django_mongodb_extensions",
-        "HOST": os.environ.get(
-            "MONGODB_URI", "mongodb://localhost:27017/?replicaSet=test-rs"
-        ),
+        "NAME": "django_mongodb_extensions",
+        "HOST": os.environ.get("MONGODB_URI", "mongodb://localhost:27017/"),
     }
 }
 DATABASE_ROUTERS = ["django_mongodb_backend.routers.MongoRouter"]
+# DebugToolbarMiddleware is not needed since tests exercise the panel directly.
 MIDDLEWARE = []
 ROOT_URLCONF = "tests.urls"
 USE_TZ = True

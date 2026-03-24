@@ -1,30 +1,28 @@
 import uuid
 from collections import defaultdict
 
-from django.db import connections
-from django.db.backends.signals import connection_created
-from django.template.loader import render_to_string
-from django.urls import path
-from django.utils.functional import cached_property
-from django.utils.translation import gettext_lazy as _, ngettext
-
 from debug_toolbar.forms import SignedDataForm
 from debug_toolbar.panels.sql.forms import SQLSelectForm
 from debug_toolbar.panels.sql.panel import SQLPanel
 from debug_toolbar.panels.sql.utils import contrasting_color_generator
 from debug_toolbar.utils import render_stacktrace
+from django.conf import settings
+from django.db import connections
+from django.db.backends.signals import connection_created
+from django.template.loader import render_to_string
+from django.urls import path
+from django.utils.functional import cached_property
+from django.utils.translation import gettext_lazy as _
+from django.utils.translation import ngettext
+
+from django_mongodb_extensions.debug_toolbar.panels.mql import views
 from django_mongodb_extensions.debug_toolbar.panels.mql.utils import (
     MQL_PANEL_ID,
     MQL_READ_OPERATIONS,
-    get_mql_warning_threshold,
     patch_get_collection,
     patch_new_connection,
 )
-from django_mongodb_extensions.debug_toolbar.panels.mql import views
 
-
-# Use dispatch_uid to ensure the signal handler is only registered once,
-# even if the module is imported multiple times (e.g., during autoreload or testing).
 connection_created.connect(
     patch_new_connection,
     dispatch_uid="django_mongodb_extensions_mql_panel_patch_new_connection",
@@ -105,75 +103,22 @@ class MQLPanel(SQLPanel):
 
     @staticmethod
     def _hex_to_rgb(hex_color):
-        """Convert a hex color string to RGB values.
-
-        Used to convert hex colors from contrasting_color_generator() to RGB
-        format for display in the debug toolbar UI.
-        """
         hex_color = hex_color.lstrip("#")
         if len(hex_color) != 6:
-            # Return a default gray color if invalid
             return [128, 128, 128]
         try:
-            # Convert hex to RGB
             return [int(hex_color[i : i + 2], 16) for i in (0, 2, 4)]
         except ValueError:
             return [128, 128, 128]
 
     @staticmethod
     def _is_read_operation(operation):
-        """Check if a MongoDB operation is a read operation.
-
-        Read operations (like SQL SELECT) retrieve data without modifying it.
-        This determines whether the Sel and Expl buttons are shown in the UI
-        for re-executing queries.
-        """
         return operation in MQL_READ_OPERATIONS
 
-    @staticmethod
-    def _query_key_similar(query):
-        """Generate a key for grouping similar queries.
-
-        Similar queries have the same collection and operation, regardless of arguments.
-        Returns a template like "db.collection.operation()" for grouping.
-        """
-        collection = query["mql_collection"]
-        operation = query["mql_operation"]
-        return f"db.{collection}.{operation}()"
-
-    @staticmethod
-    def _process_query_groups(query_groups, databases, colors, name):
-        """Process grouped queries to add color coding and count metadata for display.
-
-        For each group with 2+ queries, this function:
-        - Assigns a unique color to visually group them in the UI
-        - Adds {name}_count and {name}_color attributes to each query dict
-        - Updates database-level counts in the databases dict
-
-        Called twice in generate_stats():
-        - Once with similar_query_groups and name="similar" to highlight queries with
-          the same operation but different parameters
-        - Once with duplicate_query_groups and name="duplicate" to highlight identical
-          queries (same operation and parameters)
-        """
-        counts = defaultdict(int)
-        for (alias, _key), query_group in query_groups.items():
-            count = len(query_group)
-            # Queries are similar / duplicates only if there are at least 2 of them.
-            if count > 1:
-                color = next(colors)
-                for query in query_group:
-                    query[f"{name}_count"] = count
-                    query[f"{name}_color"] = color
-                counts[alias] += count
-        for alias, db_info in databases.items():
-            db_info[f"{name}_count"] = counts[alias]
-
     def generate_stats(self, request, response):
-        similar_query_groups = defaultdict(list)
         duplicate_query_groups = defaultdict(list)
         if self._queries:
-            mql_warning_threshold = get_mql_warning_threshold()
+            mql_warning_threshold = getattr(settings, "DJDT_MQL_WARNING_THRESHOLD", 500)
             db_colors = contrasting_color_generator()
             for db in self._databases.values():
                 hex_color = next(db_colors)
@@ -181,11 +126,6 @@ class MQLPanel(SQLPanel):
             width_ratio_tally = 0
             for query in self._queries:
                 alias = query["alias"]
-                try:
-                    sim_key = self._query_key_similar(query)
-                    similar_query_groups[(alias, sim_key)].append(query)
-                except KeyError:
-                    pass
                 dup_key = query.get("mql", "")
                 duplicate_query_groups[(alias, dup_key)].append(query)
                 query["is_slow"] = query["duration"] > mql_warning_threshold
@@ -204,13 +144,19 @@ class MQLPanel(SQLPanel):
                 query["start_offset"] = width_ratio_tally
                 query["end_offset"] = query["width_ratio"] + query["start_offset"]
                 width_ratio_tally += query["width_ratio"]
-        group_colors = contrasting_color_generator()
-        self._process_query_groups(
-            similar_query_groups, self._databases, group_colors, "similar"
-        )
-        self._process_query_groups(
-            duplicate_query_groups, self._databases, group_colors, "duplicate"
-        )
+        duplicate_colors = contrasting_color_generator()
+        duplicate_counts = defaultdict(int)
+        for (alias, _key), query_group in duplicate_query_groups.items():
+            count = len(query_group)
+            # Duplicates only apply when there are at least 2 identical queries.
+            if count > 1:
+                color = next(duplicate_colors)
+                for query in query_group:
+                    query["duplicate_count"] = count
+                    query["duplicate_color"] = color
+                duplicate_counts[alias] += count
+        for alias, db_info in self._databases.items():
+            db_info["duplicate_count"] = duplicate_counts[alias]
         self.record_stats(
             {
                 "databases": sorted(
@@ -223,7 +169,8 @@ class MQLPanel(SQLPanel):
 
     def generate_server_timing(self, request, response):
         stats = self.get_stats()
-        title = f"MQL {len(stats.get('queries', []))} queries"
+        num_queries = len(stats.get("queries", []))
+        title = f"MQL {num_queries} queries"
         value = stats.get("mql_time", 0)
         self.record_server_timing("mql_time", title, value)
 
