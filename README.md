@@ -15,7 +15,7 @@ request, similar to how the SQL panel works for relational databases.
 
 - View all MongoDB queries (MQL) executed during a request
 - See query execution time and identify slow queries
-- Re-execute read operations (aggregate, etc.) directly from the toolbar
+- Re-execute read operations (aggregate) directly from the toolbar
 - Explain query execution plans
 - Color-coded query grouping for easy identification
 - Detailed query statistics and performance metrics
@@ -70,7 +70,7 @@ DEBUG_TOOLBAR_PANELS = [
 ]
 ```
 
-3. **Optional:** Configure parameters.
+3. **Optional:** Configure settings.
 
 ```python
 # Maximum number of documents to return when re-executing select

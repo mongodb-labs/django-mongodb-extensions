@@ -15,7 +15,7 @@ def mql_call():
     return list(User.objects.all())
 
 
-class BaseMQLTests(TestCase):
+class BaseMQLTestCase(TestCase):
     panel_id = MQLPanel.panel_id
 
     def setUp(self):
@@ -33,7 +33,7 @@ class BaseMQLTests(TestCase):
         return self._get_response(request)
 
 
-class MQLPanelTests(BaseMQLTests):
+class MQLPanelTests(BaseMQLTestCase):
     def test_disabled(self):
         config = {
             "DISABLE_PANELS": {

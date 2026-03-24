@@ -3,15 +3,13 @@ import weakref
 
 from bson import json_util
 from debug_toolbar.utils import get_stack_trace, get_template_info
+from django.conf import settings
 from django_mongodb_backend.utils import OperationDebugWrapper
 
 MQL_PANEL_ID = "MQLPanel"
-
-# The only MongoDB read operation that django-mongodb-backend uses.
-MQL_READ_OPERATIONS = {
-    "aggregate",
-}
-
+MQL_READ_OPERATIONS = {"aggregate"}  # noqa
+DEFAULT_MAX_SELECT_RESULTS = 100
+DEFAULT_MQL_WARNING_THRESHOLD = 500
 _patched_connections = weakref.WeakSet()
 
 
@@ -42,7 +40,8 @@ class QueryParts:
 
 
 class DebugToolbarWrapper(OperationDebugWrapper):
-    """Wrapper around pymongo Collection objects that logs queries."""
+    """Wrapper around pymongo Collection objects that logs queries
+    for display and re-execution."""
 
     def __init__(self, db, collection, logger):
         super().__init__(db, collection)
@@ -83,6 +82,26 @@ def format_mql_query(query):
     else:
         args_formatted = ""
     return f"db.{collection_name}.{operation}(\n{args_formatted}\n)"
+
+
+def get_max_select_results():
+    """Get the maximum number of results to return when re-executing queries.
+
+    Returns the value from Django settings DJDT_MQL_MAX_SELECT_RESULTS if set,
+    otherwise returns the default value.
+    """
+    return getattr(settings, "DJDT_MQL_MAX_SELECT_RESULTS", DEFAULT_MAX_SELECT_RESULTS)
+
+
+def get_mql_warning_threshold():
+    """Get the slow-query warning threshold in milliseconds.
+
+    Returns the value from Django settings DJDT_MQL_WARNING_THRESHOLD if set,
+    otherwise returns the default value.
+    """
+    return getattr(
+        settings, "DJDT_MQL_WARNING_THRESHOLD", DEFAULT_MQL_WARNING_THRESHOLD
+    )
 
 
 def parse_query_args(query_dict):

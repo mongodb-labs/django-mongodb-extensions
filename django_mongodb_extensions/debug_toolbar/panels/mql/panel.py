@@ -19,6 +19,7 @@ from django_mongodb_extensions.debug_toolbar.panels.mql import views
 from django_mongodb_extensions.debug_toolbar.panels.mql.utils import (
     MQL_PANEL_ID,
     MQL_READ_OPERATIONS,
+    get_mql_warning_threshold,
     patch_get_collection,
     patch_new_connection,
 )
@@ -103,10 +104,17 @@ class MQLPanel(SQLPanel):
 
     @staticmethod
     def _hex_to_rgb(hex_color):
+        """Convert a hex color string to RGB values.
+
+        Used to convert hex colors from contrasting_color_generator() to RGB
+        format for display in the debug toolbar UI.
+        """
         hex_color = hex_color.lstrip("#")
         if len(hex_color) != 6:
+            # Return a default gray color if invalid
             return [128, 128, 128]
         try:
+            # Convert hex to RGB
             return [int(hex_color[i : i + 2], 16) for i in (0, 2, 4)]
         except ValueError:
             return [128, 128, 128]
@@ -118,7 +126,7 @@ class MQLPanel(SQLPanel):
     def generate_stats(self, request, response):
         duplicate_query_groups = defaultdict(list)
         if self._queries:
-            mql_warning_threshold = getattr(settings, "DJDT_MQL_WARNING_THRESHOLD", 500)
+            mql_warning_threshold = get_mql_warning_threshold()
             db_colors = contrasting_color_generator()
             for db in self._databases.values():
                 hex_color = next(db_colors)

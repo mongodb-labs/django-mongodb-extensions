@@ -13,6 +13,7 @@ from pymongo import errors as pymongo_errors
 from django_mongodb_extensions.debug_toolbar.panels.mql.utils import (
     MQL_PANEL_ID,
     QueryParts,
+    get_max_select_results,
     parse_query_args,
 )
 
@@ -176,7 +177,7 @@ class MQLSelectForm(MQLBaseForm):
     def _execute_aggregate(self, collection, args_list):
         pipeline = args_list[0] if args_list else []
         result_docs = []
-        max_results = getattr(settings, "DJDT_MQL_MAX_SELECT_RESULTS", 100)
+        max_results = get_max_select_results()
         with collection.aggregate(pipeline) as cursor:
             for i, doc in enumerate(cursor):
                 if i >= max_results:
