@@ -12,6 +12,7 @@ requires-python = ">=3.10"
 
 [project.optional-dependencies]
 test = [
+    "coverage",
     "django-debug-toolbar",
 ]
 
