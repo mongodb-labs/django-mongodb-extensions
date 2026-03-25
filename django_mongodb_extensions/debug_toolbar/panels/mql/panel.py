@@ -6,7 +6,6 @@ from debug_toolbar.panels.sql.forms import SQLSelectForm
 from debug_toolbar.panels.sql.panel import SQLPanel
 from debug_toolbar.panels.sql.utils import contrasting_color_generator
 from debug_toolbar.utils import render_stacktrace
-from django.conf import settings
 from django.db import connections
 from django.db.backends.signals import connection_created
 from django.template.loader import render_to_string
