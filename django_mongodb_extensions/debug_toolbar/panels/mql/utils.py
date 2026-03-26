@@ -87,8 +87,8 @@ def format_mql_query(query):
 def get_max_select_results():
     """Get the maximum number of results to return when re-executing queries.
 
-    Returns the value from Django settings DJDT_MQL_MAX_SELECT_RESULTS if set,
-    otherwise returns the default value.
+    Return the value from Django settings DJDT_MQL_MAX_SELECT_RESULTS if set,
+    otherwise return the default value.
     """
     return getattr(settings, "DJDT_MQL_MAX_SELECT_RESULTS", DEFAULT_MAX_SELECT_RESULTS)
 
@@ -96,8 +96,8 @@ def get_max_select_results():
 def get_mql_warning_threshold():
     """Get the slow-query warning threshold in milliseconds.
 
-    Returns the value from Django settings DJDT_MQL_WARNING_THRESHOLD if set,
-    otherwise returns the default value.
+    Return the value from Django settings DJDT_MQL_WARNING_THRESHOLD if set,
+    otherwise return the default value.
     """
     return getattr(
         settings, "DJDT_MQL_WARNING_THRESHOLD", DEFAULT_MQL_WARNING_THRESHOLD
