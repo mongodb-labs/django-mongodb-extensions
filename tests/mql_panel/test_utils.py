@@ -1,7 +1,7 @@
 from django.db import connection
 from django.test import TestCase
 
-from django_mongodb_extensions.debug_toolbar.panels.mql.utils import (
+from django_mongodb_extensions.mql_panel.utils import (
     QueryParts,
     parse_query_args,
 )

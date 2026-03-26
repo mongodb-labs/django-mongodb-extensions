@@ -9,7 +9,7 @@ from django.db import connections
 from django.utils.translation import gettext_lazy as _
 from pymongo import errors as pymongo_errors
 
-from django_mongodb_extensions.debug_toolbar.panels.mql.utils import (
+from django_mongodb_extensions.mql_panel.utils import (
     MQL_PANEL_ID,
     QueryParts,
     get_max_select_results,

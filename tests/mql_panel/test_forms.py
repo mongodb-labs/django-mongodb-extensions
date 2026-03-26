@@ -1,6 +1,6 @@
 from django.test import TestCase
 
-from django_mongodb_extensions.debug_toolbar.panels.mql.forms import MQLQueryForm
+from django_mongodb_extensions.mql_panel.forms import MQLQueryForm
 
 
 class ConvertDocumentsToTableTests(TestCase):

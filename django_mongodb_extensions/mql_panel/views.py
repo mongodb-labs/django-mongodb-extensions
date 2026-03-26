@@ -28,7 +28,7 @@ def mql_explain(request):
             "headers": headers,
             "alias": query["alias"],
         }
-        content = render_to_string("debug_toolbar/panels/mql_explain.html", context)
+        content = render_to_string("mql_panel/mql_explain.html", context)
         return JsonResponse({"content": content})
     return HttpResponseBadRequest("Form errors")
 
@@ -53,6 +53,6 @@ def mql_query(request):
             "headers": headers,
             "alias": query["alias"],
         }
-        content = render_to_string("debug_toolbar/panels/mql_query.html", context)
+        content = render_to_string("mql_panel/mql_query.html", context)
         return JsonResponse({"content": content})
     return HttpResponseBadRequest("Form errors")

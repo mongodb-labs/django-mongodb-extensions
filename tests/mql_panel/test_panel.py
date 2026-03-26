@@ -3,9 +3,9 @@ from django.contrib.auth.models import User
 from django.http import HttpResponse
 from django.test import RequestFactory, TestCase, override_settings
 
-from django_mongodb_extensions.debug_toolbar.panels.mql.forms import MQLQueryForm
-from django_mongodb_extensions.debug_toolbar.panels.mql.panel import MQLPanel
-from django_mongodb_extensions.debug_toolbar.panels.mql.utils import parse_query_args
+from django_mongodb_extensions.mql_panel import MQLPanel
+from django_mongodb_extensions.mql_panel.forms import MQLQueryForm
+from django_mongodb_extensions.mql_panel.utils import parse_query_args
 
 rf = RequestFactory()
 
@@ -35,11 +35,7 @@ class BaseMQLTestCase(TestCase):
 
 class MQLPanelTests(BaseMQLTestCase):
     def test_disabled(self):
-        config = {
-            "DISABLE_PANELS": {
-                "django_mongodb_extensions.debug_toolbar.panels.mql.panel.MQLPanel"
-            }
-        }
+        config = {"DISABLE_PANELS": {"django_mongodb_extensions.mql_panel.MQLPanel"}}
         self.assertIs(self.panel.enabled, True)
         with self.settings(DEBUG_TOOLBAR_CONFIG=config):
             self.assertIs(self.panel.enabled, False)

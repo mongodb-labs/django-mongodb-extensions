@@ -14,8 +14,8 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
 
-from django_mongodb_extensions.debug_toolbar.panels.mql import views
-from django_mongodb_extensions.debug_toolbar.panels.mql.utils import (
+from django_mongodb_extensions.mql_panel import views
+from django_mongodb_extensions.mql_panel.utils import (
     MQL_PANEL_ID,
     MQL_READ_OPERATIONS,
     get_mql_warning_threshold,
@@ -54,7 +54,7 @@ class MQLPanel(SQLPanel):
 
     # Implement Panel API
     nav_title = _("MQL")
-    template = "debug_toolbar/panels/mql.html"
+    template = "mql_panel/mql.html"
 
     @classmethod
     def get_urls(cls):
