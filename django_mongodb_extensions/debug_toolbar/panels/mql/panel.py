@@ -59,7 +59,7 @@ class MQLPanel(SQLPanel):
     @classmethod
     def get_urls(cls):
         return [
-            path("mql_aggregate/", views.mql_aggregate, name="mql_aggregate"),
+            path("mql_query/", views.mql_query, name="mql_query"),
             path("mql_explain/", views.mql_explain, name="mql_explain"),
         ]
 
@@ -140,7 +140,7 @@ class MQLPanel(SQLPanel):
                 # Only show Sel/Expl buttons if it's a read operation AND
                 # the args were successfully serialized (mql_args_json is not None).
                 args_json = query.get("mql_args_json")
-                query["is_aggregate"] = (
+                query["is_query"] = (
                     self._is_read_operation(operation) and args_json is not None
                 )
                 query["rgb_color"] = self._databases[alias]["rgb_color"]

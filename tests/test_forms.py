@@ -1,11 +1,11 @@
 from django.test import TestCase
 
-from django_mongodb_extensions.debug_toolbar.panels.mql.forms import MQLAggregateForm
+from django_mongodb_extensions.debug_toolbar.panels.mql.forms import MQLQueryForm
 
 
 class ConvertDocumentsToTableTests(TestCase):
     def setUp(self):
-        self.form = MQLAggregateForm()
+        self.form = MQLQueryForm()
 
     def test_empty_documents(self):
         """Empty document list returns empty rows and headers."""
