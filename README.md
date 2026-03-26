@@ -2,14 +2,20 @@
 
 Extensions for Django MongoDB Backend
 
+## Installation
+
+```bash
+pip install django-mongodb-extensions
+```
+
 ## Extensions
 
-### MQL Panel for Django Debug Toolbar
+### MQL Panel
 
-The first extension is the **MQL Panel** for
-[django-debug-toolbar](https://github.com/jazzband/django-debug-toolbar).
-This panel provides detailed insights into MongoDB queries executed during a
-request, similar to how the SQL panel works for relational databases.
+This panel for
+[Django Debug Toolbar](https://github.com/jazzband/django-debug-toolbar)
+provides insights into MongoDB queries executed during a request
+similar to how the SQL panel works for relational databases.
 
 **Features:**
 
@@ -20,31 +26,17 @@ request, similar to how the SQL panel works for relational databases.
 - Color-coded query grouping for easy identification
 - Detailed query statistics and performance metrics
 
-## Installation
+#### Configure the MQL Panel
 
-### Requirements
-
-- [django-mongodb-backend](https://github.com/mongodb-labs/django-mongodb-backend)
-- [django-debug-toolbar](https://github.com/jazzband/django-debug-toolbar)
-
-First, install and configure django-debug-toolbar by following their
+First, install and configure Django Debug Toolbar by following their
 [installation instructions](https://django-debug-toolbar.readthedocs.io/en/latest/installation.html).
-
-### Install the Package
-
-```bash
-pip install django-mongodb-extensions
-```
-
-### Configure the MQL Panel
 
 1. **Add to `INSTALLED_APPS`** in your Django settings:
 
 ```python
 INSTALLED_APPS = [
     # ...
-    'debug_toolbar',
-    'django_mongodb_extensions',
+    "django_mongodb_extensions",
     # ...
 ]
 ```
@@ -53,20 +45,20 @@ INSTALLED_APPS = [
 
 ```python
 DEBUG_TOOLBAR_PANELS = [
-    'debug_toolbar.panels.history.HistoryPanel',
-    'debug_toolbar.panels.versions.VersionsPanel',
-    'debug_toolbar.panels.timer.TimerPanel',
-    'debug_toolbar.panels.settings.SettingsPanel',
-    'debug_toolbar.panels.headers.HeadersPanel',
-    'debug_toolbar.panels.request.RequestPanel',
+    "debug_toolbar.panels.history.HistoryPanel",
+    "debug_toolbar.panels.versions.VersionsPanel",
+    "debug_toolbar.panels.timer.TimerPanel",
+    "debug_toolbar.panels.settings.SettingsPanel",
+    "debug_toolbar.panels.headers.HeadersPanel",
+    "debug_toolbar.panels.request.RequestPanel",
     # Add this:
-    'django_mongodb_extensions.mql_panel.MQLPanel',
-    'debug_toolbar.panels.templates.TemplatesPanel',
-    'debug_toolbar.panels.staticfiles.StaticFilesPanel',
-    'debug_toolbar.panels.cache.CachePanel',
-    'debug_toolbar.panels.signals.SignalsPanel',
-    'debug_toolbar.panels.redirects.RedirectsPanel',
-    'debug_toolbar.panels.profiling.ProfilingPanel',
+    "django_mongodb_extensions.mql_panel.MQLPanel",
+    "debug_toolbar.panels.templates.TemplatesPanel",
+    "debug_toolbar.panels.staticfiles.StaticFilesPanel",
+    "debug_toolbar.panels.cache.CachePanel",
+    "debug_toolbar.panels.signals.SignalsPanel",
+    "debug_toolbar.panels.redirects.RedirectsPanel",
+    "debug_toolbar.panels.profiling.ProfilingPanel",
 ]
 ```
 
