@@ -19,13 +19,13 @@ from django_mongodb_extensions.mql_panel.utils import (
 
 class MQLBaseForm(SQLSelectForm):
     def clean(self):
-        # Explicitly call forms.Form.clean() to bypass SQLSelectForm.clean()
-        # which has SQL-specific validation not needed for MQL queries.
+        # Call forms.Form.clean() to bypass SQLSelectForm.clean() which has
+        # SQL-specific validation
         cleaned_data = forms.Form.clean(self)
         request_id = cleaned_data.get("request_id")
-        djdt_query_id = cleaned_data.get("djdt_query_id")
         if not request_id:
             raise ValidationError(_("Missing request ID."))
+        djdt_query_id = cleaned_data.get("djdt_query_id")
         if not djdt_query_id:
             raise ValidationError(_("Missing query ID."))
         toolbar = DebugToolbar.fetch(request_id, panel_id=MQL_PANEL_ID)
@@ -35,18 +35,19 @@ class MQLBaseForm(SQLSelectForm):
         stats = panel.get_stats()
         if not stats or "queries" not in stats:
             raise ValidationError(_("Query data is not available."))
-        query = next(
-            (
-                _query
-                for _query in stats["queries"]
-                if isinstance(_query, dict)
+        # Find query in stats using djdt_query_id
+        query = None
+        for _query in stats["queries"]:
+            if (
+                isinstance(_query, dict)
                 and _query.get("djdt_query_id") == djdt_query_id
-            ),
-            None,
-        )
+            ):
+                query = _query
+                break
         if not query:
             raise ValidationError(_("Invalid query ID."))
-        if not all(key in query for key in ["alias", "mql"]):
+        # Ensure query contains required keys
+        if not all(key in query for key in ("alias", "mql")):
             raise ValidationError(_("Query data is incomplete."))
         cleaned_data["query"] = query
         return cleaned_data
