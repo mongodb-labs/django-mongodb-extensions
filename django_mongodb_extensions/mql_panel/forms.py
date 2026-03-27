@@ -10,15 +10,16 @@ from django.utils.translation import gettext_lazy as _
 from pymongo import errors as pymongo_errors
 
 from django_mongodb_extensions.mql_panel.utils import (
-    MQL_PANEL_ID,
     QueryParts,
-    get_max_select_results,
+    get_max_query_results,
     parse_query_args,
 )
 
 
 class MQLBaseForm(SQLSelectForm):
     def clean(self):
+        from .panel import MQLPanel
+
         # Call forms.Form.clean() to bypass SQLSelectForm.clean() which has
         # SQL-specific validation
         cleaned_data = forms.Form.clean(self)
@@ -28,10 +29,10 @@ class MQLBaseForm(SQLSelectForm):
         djdt_query_id = cleaned_data.get("djdt_query_id")
         if not djdt_query_id:
             raise ValidationError(_("Missing query ID."))
-        toolbar = DebugToolbar.fetch(request_id, panel_id=MQL_PANEL_ID)
+        toolbar = DebugToolbar.fetch(request_id, panel_id=MQLPanel.panel_id)
         if toolbar is None:
             raise ValidationError(_("Data for this panel isn't available anymore."))
-        panel = toolbar.get_panel_by_id(MQL_PANEL_ID)
+        panel = toolbar.get_panel_by_id(MQLPanel.panel_id)
         stats = panel.get_stats()
         if not stats or "queries" not in stats:
             raise ValidationError(_("Query data is not available."))
@@ -107,7 +108,7 @@ class MQLBaseForm(SQLSelectForm):
             if isinstance(error, ValueError):
                 header = "Query Parsing Error"
                 messages = [f"Query parsing error: {error}"]
-                if operation_type == "select":
+                if operation_type == "query":
                     messages += [
                         "The MQL panel can only re-execute read operations.",
                         "Write operations (insert, update, delete) cannot be re-executed.",
@@ -177,7 +178,7 @@ class MQLQueryForm(MQLBaseForm):
     def _execute_aggregate(self, collection, args_list):
         pipeline = args_list[0] if args_list else []
         result_docs = []
-        max_results = get_max_select_results()
+        max_results = get_max_query_results()
         with collection.aggregate(pipeline) as cursor:
             for i, doc in enumerate(cursor):
                 if i >= max_results:
@@ -185,15 +186,15 @@ class MQLQueryForm(MQLBaseForm):
                 result_docs.append(doc)
         return result_docs
 
-    def _execute_select(self, db, collection, collection_name, operation, args_list):
+    def _execute_query(self, db, collection, collection_name, operation, args_list):
         if operation == "aggregate":
             result_docs = self._execute_aggregate(collection, args_list)
         else:
             raise ValueError(f"Unsupported read operation: {operation}")
         return self.convert_documents_to_table(result_docs)
 
-    def select(self):
-        return self._execute_operation("select", self._execute_select)
+    def query(self):
+        return self._execute_operation("query", self._execute_query)
 
     def _format_cell_value(self, value):
         """Format a single cell value for table display."""

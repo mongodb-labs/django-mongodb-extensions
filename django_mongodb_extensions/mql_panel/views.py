@@ -44,7 +44,7 @@ def mql_query(request):
     form = MQLQueryForm(verified_data)
     if form.is_valid():
         query = form.cleaned_data["query"]
-        result, headers = form.select()
+        result, headers = form.query()
 
         context = {
             "result": result,

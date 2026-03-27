@@ -13,8 +13,7 @@
       <dt>{% translate "Database" %}</dt>
       <dd>{{ alias }}</dd>
     </dl>
-    {% if result %}
-      <h4>{% translate "Query Results" %}</h4>
+    <h4>{% translate "Query Results" %}</h4>
       <table>
         <thead>
           <tr>
@@ -41,8 +40,5 @@
           {% endfor %}
         </tbody>
       </table>
-    {% else %}
-      <p>{% translate "Empty set" %}</p>
-    {% endif %}
   </div>
 </div>

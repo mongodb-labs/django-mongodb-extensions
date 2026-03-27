@@ -18,6 +18,3 @@ test = [
 
 [tool.ruff.lint]
 select = ["I", "F"]
-
-[tool.hatch.build.targets.wheel]
-packages = ["django_mongodb_extensions"]

@@ -67,7 +67,7 @@ DEBUG_TOOLBAR_PANELS = [
 ```python
 # Maximum number of documents to return when re-executing select
 # queries (default is 100).
-DJDT_MQL_MAX_SELECT_RESULTS = 25
+DJDT_MQL_MAX_QUERY_RESULTS = 25
 
 # Queries slower than this threshold (in milliseconds) are highlighted
 # in the debug toolbar (default is 500 ms).

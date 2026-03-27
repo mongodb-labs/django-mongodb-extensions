@@ -16,8 +16,6 @@ from django.utils.translation import ngettext
 
 from django_mongodb_extensions.mql_panel import views
 from django_mongodb_extensions.mql_panel.utils import (
-    MQL_PANEL_ID,
-    MQL_READ_OPERATIONS,
     get_mql_warning_threshold,
     patch_get_collection,
     patch_new_connection,
@@ -30,7 +28,8 @@ connection_created.connect(
 
 
 class MQLPanel(SQLPanel):
-    panel_id = MQL_PANEL_ID
+    nav_title = _("MQL")
+    template = "mql_panel/mql.html"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -52,10 +51,6 @@ class MQLPanel(SQLPanel):
             self._databases[alias]["num_queries"] += 1
         self._mql_time += kwargs["duration"]
 
-    # Implement Panel API
-    nav_title = _("MQL")
-    template = "mql_panel/mql.html"
-
     @classmethod
     def get_urls(cls):
         return [
@@ -68,8 +63,8 @@ class MQLPanel(SQLPanel):
         stats = self.get_stats()
         query_count = len(stats.get("queries", []))
         return ngettext(
-            "%(query_count)d query in %(mql_time).2fms",
-            "%(query_count)d queries in %(mql_time).2fms",
+            "%(query_count)d query in %(mql_time).3f ms",
+            "%(query_count)d queries in %(mql_time).3f ms",
             query_count,
         ) % {
             "query_count": query_count,
@@ -120,7 +115,7 @@ class MQLPanel(SQLPanel):
 
     @staticmethod
     def _is_read_operation(operation):
-        return operation in MQL_READ_OPERATIONS
+        return operation in {"aggregate"}
 
     def generate_stats(self, request, response):
         duplicate_query_groups = defaultdict(list)
@@ -137,8 +132,9 @@ class MQLPanel(SQLPanel):
                 duplicate_query_groups[(alias, dup_key)].append(query)
                 query["is_slow"] = query["duration"] > mql_warning_threshold
                 operation = query.get("mql_operation", "")
-                # Only show Sel/Expl buttons if it's a read operation AND
-                # the args were successfully serialized (mql_args_json is not None).
+                # Only show Query/Explain buttons if it's a read operation and
+                # the args were successfully serialized (mql_args_json is not
+                # None).
                 args_json = query.get("mql_args_json")
                 query["is_query"] = (
                     self._is_read_operation(operation) and args_json is not None

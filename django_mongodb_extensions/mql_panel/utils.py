@@ -6,9 +6,7 @@ from debug_toolbar.utils import get_stack_trace, get_template_info
 from django.conf import settings
 from django_mongodb_backend.utils import OperationDebugWrapper
 
-MQL_PANEL_ID = "MQLPanel"
-MQL_READ_OPERATIONS = {"aggregate"}  # noqa
-DEFAULT_MAX_SELECT_RESULTS = 100
+DEFAULT_MAX_QUERY_RESULTS = 100
 DEFAULT_MQL_WARNING_THRESHOLD = 500
 _patched_connections = weakref.WeakSet()
 
@@ -50,10 +48,7 @@ class DebugToolbarWrapper(OperationDebugWrapper):
     def log(self, op, duration, args, kwargs=None):
         args_str = ", ".join(repr(arg) for arg in args)
         operation = f"db.{self.collection_name}{op}({args_str})"
-        try:
-            args_json = json_util.dumps(list(args))
-        except (TypeError, ValueError):
-            args_json = None
+        args_json = json_util.dumps(list(args))
         if self.logger:
             self.logger.record(
                 alias=self.db.alias,
@@ -84,13 +79,13 @@ def format_mql_query(query):
     return f"db.{collection_name}.{operation}(\n{args_formatted}\n)"
 
 
-def get_max_select_results():
+def get_max_query_results():
     """Get the maximum number of results to return when re-executing queries.
 
-    Return the value from Django settings DJDT_MQL_MAX_SELECT_RESULTS if set,
+    Return the value from Django settings DJDT_MQL_MAX_QUERY_RESULTS if set,
     otherwise return the default value.
     """
-    return getattr(settings, "DJDT_MQL_MAX_SELECT_RESULTS", DEFAULT_MAX_SELECT_RESULTS)
+    return getattr(settings, "DJDT_MQL_MAX_QUERY_RESULTS", DEFAULT_MAX_QUERY_RESULTS)
 
 
 def get_mql_warning_threshold():
@@ -109,16 +104,7 @@ def parse_query_args(query_dict):
     collection_name = query_dict["mql_collection"]
     operation = query_dict["mql_operation"]
     args_json = query_dict["mql_args_json"]
-    # If args_json is None, serialization failed when the query was logged.
-    # Treat this as unreplayable to avoid re-executing a different query.
-    if args_json is None:
-        raise ValueError(
-            "Query arguments could not be serialized when logged. "
-            "This query cannot be re-executed because the original arguments are unavailable."
-        )
-    if args_json != "":
-        return collection_name, operation, json_util.loads(args_json)
-    return collection_name, operation, []
+    return collection_name, operation, json_util.loads(args_json)
 
 
 def patch_get_collection(connection):
