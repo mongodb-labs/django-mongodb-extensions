@@ -7,10 +7,8 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.db import connections
 from django.utils.translation import gettext_lazy as _
-from pymongo import errors as pymongo_errors
 
-from django_mongodb_extensions.mql_panel.utils import (
-    QueryParts,
+from .utils import (
     get_max_query_results,
     parse_query_args,
 )
@@ -18,102 +16,19 @@ from django_mongodb_extensions.mql_panel.utils import (
 
 class MQLBaseForm(SQLSelectForm):
     def _execute_operation(self, operation_type, executor_func):
-        mql_string = ""
-        try:
-            parts = self._get_query_parts()
-            mql_string = parts.mql_string
-            return executor_func(
-                parts.db,
-                parts.collection,
-                parts.collection_name,
-                parts.operation,
-                parts.args_list,
-            )
-        except (ValueError, pymongo_errors.PyMongoError) as e:
-            # ValueError: unsupported operation or unserializable args.
-            # PyMongoError: any MongoDB driver error during execution.
-            return self._handle_operation_error(e, mql_string, operation_type)
-
-    def _get_query_parts(self):
         query_dict = self.cleaned_data["query"]
         alias = query_dict.get("alias", "default")
         connection = connections[alias]
-        collection_name, operation, args_list = parse_query_args(query_dict)
         db = connection.database
-        return QueryParts(
-            query_dict=query_dict,
-            alias=alias,
-            mql_string=query_dict.get("mql", ""),
-            connection=connection,
-            db=db,
-            collection=db[collection_name],
-            collection_name=collection_name,
-            operation=operation,
-            args_list=args_list,
+        collection_name, operation, args_list = parse_query_args(query_dict)
+        collection = db[collection_name]
+        return executor_func(
+            db,
+            collection,
+            collection_name,
+            operation,
+            args_list,
         )
-
-    def _handle_operation_error(self, error, mql_string, operation_type="operation"):
-        error_map = {
-            pymongo_errors.OperationFailure: (
-                "MongoDB Operation Error",
-                [
-                    f"MongoDB operation failed: {error}",
-                    "The query syntax may be invalid or the operation is not supported.",
-                ],
-            ),
-            (
-                pymongo_errors.ConnectionFailure,
-                pymongo_errors.ServerSelectionTimeoutError,
-            ): (
-                "MongoDB Connection Error",
-                [
-                    f"MongoDB connection error: {error}",
-                    "Could not connect to MongoDB server.",
-                    "Check your database connection settings.",
-                ],
-            ),
-            pymongo_errors.PyMongoError: (
-                "MongoDB Error",
-                [
-                    f"MongoDB error: {error}",
-                    "An error occurred while executing the MongoDB operation.",
-                ],
-            ),
-        }
-        header, messages = None, []
-        for err_type, (_header, _messages) in error_map.items():
-            if isinstance(error, err_type):
-                header, messages = _header, _messages.copy()
-                break
-        if not header:
-            if isinstance(error, ValueError):
-                header = "Query Parsing Error"
-                messages = [f"Query parsing error: {error}"]
-                if operation_type == "query":
-                    messages += [
-                        "The MQL panel can only re-execute read operations.",
-                        "Write operations (insert, update, delete) cannot be re-executed.",
-                    ]
-                else:
-                    messages += [
-                        "The MQL panel tracks raw MongoDB operations.",
-                        "Some operations may not be re-executable from the debug toolbar.",
-                    ]
-            else:
-                header = f"{operation_type.capitalize()} Error"
-                messages = [
-                    f"Unexpected error executing {operation_type}: {error}",
-                    "An unexpected error occurred.",
-                ]
-        body_text = "\n\n".join(messages)
-        formatted_body = body_text.split("\n")
-        formatted_body.extend(["", f"Original query: {mql_string}"])
-        # Return error in the same format as convert_documents_to_table():
-        # a one-row table with {value, is_json} cells
-        error_message = "\n".join(formatted_body)
-        rows = [[{"value": error_message, "is_json": False}]]
-        headers = [header]
-        return rows, headers
 
     def clean(self):
         from .panel import MQLPanel
@@ -193,34 +108,58 @@ class MQLQueryForm(MQLBaseForm):
             raise ValueError(f"Unsupported read operation: {operation}")
         return self.convert_documents_to_table(result_docs)
 
+    def _flatten_single_key_dicts(self, obj):
+        if isinstance(obj, dict):
+            if len(obj) == 1:
+                only_value = next(iter(obj.values()))
+                return self._flatten_single_key_dicts(only_value)
+            return {
+                key_name: self._flatten_single_key_dicts(value_item)
+                for key_name, value_item in obj.items()
+            }
+        elif isinstance(obj, list):
+            return [self._flatten_single_key_dicts(value_item) for value_item in obj]
+        return obj
+
     def _format_cell_value(self, value):
-        """Format a single cell value for table display."""
-        if value is None:
-            return {"value": "", "is_json": False}
-        # Handle primitive types directly without JSON serialization
-        if isinstance(value, (str, int, float, bool)):
-            return {"value": str(value), "is_json": False}
-        # For complex types (ObjectId, datetime, dicts, lists, etc.), use json_util
-        try:
-            serialized = json_util.dumps(value)
-        except (TypeError, AttributeError):
-            return {"value": str(value), "is_json": False}
-        try:
-            parsed = json.loads(serialized)
-        except json.JSONDecodeError:
-            return {"value": serialized, "is_json": False}
-        # Extract value from single-key BSON extended JSON objects like {"$oid": "..."}
-        if isinstance(parsed, dict) and len(parsed) == 1:
-            key, val = next(iter(parsed.items()))
-            return {"value": str(val), "is_json": False}
-        # For multi-key objects, format with indentation for readability
-        if isinstance(parsed, dict) and len(parsed) > 1:
-            return {"value": json.dumps(parsed, indent=4), "is_json": True}
-        # For lists and other types, use compact serialization
-        return {"value": serialized, "is_json": False}
+        serialized = json_util.dumps(value)
+        parsed_json = json.loads(serialized)
+        flattened_value = self._flatten_single_key_dicts(parsed_json)
+        if isinstance(flattened_value, (str, int, float, bool)):
+            return {"value": str(flattened_value), "is_json": False}
+        if isinstance(flattened_value, dict):
+            return {
+                "type": "dict",
+                "value": self._format_dict_for_template(flattened_value),
+                "is_json": False,
+            }
+        if isinstance(flattened_value, list):
+            return {
+                "type": "list",
+                "value": self._format_list_for_template(flattened_value),
+                "is_json": False,
+            }
+        return {
+            "value": json.dumps(flattened_value, indent=4),
+            "is_json": True,
+        }
+
+    def _format_dict_for_template(self, dictionary):
+        return [
+            {"key": key_name, **self._format_cell_value(value_item)}
+            for key_name, value_item in dictionary.items()
+        ]
+
+    def _format_list_for_template(self, list_items):
+        return [
+            {"key": index, **self._format_cell_value(value_item)}
+            for index, value_item in enumerate(list_items)
+        ]
+
+    def _format_row(self, row_dict):
+        return [self._format_cell_value(cell_value) for cell_value in row_dict.values()]
 
     def convert_documents_to_table(self, documents):
-        """Convert MongoDB documents to a table of rows and headers."""
         if not documents:
             return [], []
         # Collect all unique field names

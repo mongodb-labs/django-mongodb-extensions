@@ -36,39 +36,9 @@ class DebugToolbarWrapper(OperationDebugWrapper):
             )
 
 
-class QueryParts:
-    """Structured container for parsed query components."""
-
-    def __init__(
-        self,
-        query_dict,
-        alias,
-        mql_string,
-        connection,
-        db,
-        collection,
-        collection_name,
-        operation,
-        args_list,
-    ):
-        self.query_dict = query_dict
-        self.alias = alias
-        self.mql_string = mql_string
-        self.connection = connection
-        self.db = db
-        self.collection = collection
-        self.collection_name = collection_name
-        self.operation = operation
-        self.args_list = args_list
-
-
 def format_mql_query(query):
     """Return a pretty-printed MQL query string."""
-    mql_string = query.get("mql", "")
-    try:
-        collection_name, operation, args_list = parse_query_args(query)
-    except ValueError:
-        return mql_string
+    collection_name, operation, args_list = parse_query_args(query)
     if args_list:
         args_formatted = json_util.dumps(
             args_list[0] if len(args_list) == 1 else args_list,

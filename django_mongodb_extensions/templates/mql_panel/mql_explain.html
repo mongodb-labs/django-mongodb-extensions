@@ -17,13 +17,7 @@
       <h4>{% translate "Explain Output" %}</h4>
       {% for row in result %}
         {% for item in row %}
-          {% if item.value %}
-            {# Handle dict format from _handle_operation_error #}
-            <pre style="margin: 0; white-space: pre-wrap; word-wrap: break-word;">{{ item.value }}</pre>
-          {% else %}
-            {# Handle plain string format from _execute_explain #}
-            <pre style="margin: 0; white-space: pre-wrap; word-wrap: break-word;">{{ item }}</pre>
-          {% endif %}
+          <pre style="margin: 0; white-space: pre-wrap; word-wrap: break-word;">{{ item }}</pre>
         {% endfor %}
       {% endfor %}
     {% else %}

@@ -14,8 +14,8 @@ from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import ngettext
 
-from django_mongodb_extensions.mql_panel import views
-from django_mongodb_extensions.mql_panel.utils import (
+from . import views
+from .utils import (
     get_mql_warning_threshold,
     patch_get_collection,
     patch_new_connection,
