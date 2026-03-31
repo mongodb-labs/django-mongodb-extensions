@@ -37,65 +37,6 @@ class MQLPanel(SQLPanel):
         self._queries = []
         self._databases = {}
 
-    def record(self, **kwargs):
-        kwargs["djdt_query_id"] = uuid.uuid4().hex
-        self._queries.append(kwargs)
-        alias = kwargs["alias"]
-        if alias not in self._databases:
-            self._databases[alias] = {
-                "time_spent": kwargs["duration"],
-                "num_queries": 1,
-            }
-        else:
-            self._databases[alias]["time_spent"] += kwargs["duration"]
-            self._databases[alias]["num_queries"] += 1
-        self._mql_time += kwargs["duration"]
-
-    @classmethod
-    def get_urls(cls):
-        return [
-            path("mql_query/", views.mql_query, name="mql_query"),
-            path("mql_explain/", views.mql_explain, name="mql_explain"),
-        ]
-
-    @property
-    def nav_subtitle(self):
-        stats = self.get_stats()
-        query_count = len(stats.get("queries", []))
-        return ngettext(
-            "%(query_count)d query in %(mql_time).3f ms",
-            "%(query_count)d queries in %(mql_time).3f ms",
-            query_count,
-        ) % {
-            "query_count": query_count,
-            "mql_time": stats.get("mql_time"),
-        }
-
-    @property
-    def title(self):
-        stats = self.get_stats()
-        databases = stats.get("databases", {}) if stats else {}
-        count = len(databases)
-        return ngettext(
-            "MQL queries from %(count)d connection",
-            "MQL queries from %(count)d connections",
-            count,
-        ) % {"count": count}
-
-    def enable_instrumentation(self):
-        # Only patch MongoDB connections (those with get_collection method).
-        # This allows the panel to work in multi-database setups with
-        # both MongoDB and relational databases.
-        for connection in connections.all():
-            if hasattr(connection, "get_collection"):
-                patch_get_collection(connection)
-                connection._djdt_logger = self
-
-    def disable_instrumentation(self):
-        for connection in connections.all():
-            if hasattr(connection, "_djdt_logger"):
-                connection._djdt_logger = None
-
     @staticmethod
     def _hex_to_rgb(hex_color):
         """Convert a hex color string to RGB values.
@@ -116,6 +57,41 @@ class MQLPanel(SQLPanel):
     @staticmethod
     def _is_read_operation(operation):
         return operation in {"aggregate"}
+
+    @cached_property
+    def content(self):
+        stats = self.get_stats()
+        colors = contrasting_color_generator()
+        trace_colors = defaultdict(lambda: next(colors))
+        for query in stats.get("queries", []):
+            query["mql"] = query.get("mql", "")
+            query["params"] = True
+            query["form"] = SignedDataForm(
+                auto_id=None,
+                initial=SQLSelectForm(
+                    initial={
+                        "djdt_query_id": query["djdt_query_id"],
+                        "request_id": self.toolbar.request_id,
+                    }
+                ).initial,
+            )
+            query["stacktrace"] = render_stacktrace(query["stacktrace"])
+            query["trace_color"] = trace_colors[query["stacktrace"]]
+        return render_to_string(self.template, stats)
+
+    def disable_instrumentation(self):
+        for connection in connections.all():
+            if hasattr(connection, "_djdt_logger"):
+                connection._djdt_logger = None
+
+    def enable_instrumentation(self):
+        # Only patch MongoDB connections (those with get_collection method).
+        # This allows the panel to work in multi-database setups with
+        # both MongoDB and relational databases.
+        for connection in connections.all():
+            if hasattr(connection, "get_collection"):
+                patch_get_collection(connection)
+                connection._djdt_logger = self
 
     def generate_stats(self, request, response):
         duplicate_query_groups = defaultdict(list)
@@ -177,27 +153,51 @@ class MQLPanel(SQLPanel):
         value = stats.get("mql_time", 0)
         self.record_server_timing("mql_time", title, value)
 
+    @classmethod
+    def get_urls(cls):
+        return [
+            path("mql_query/", views.mql_query, name="mql_query"),
+            path("mql_explain/", views.mql_explain, name="mql_explain"),
+        ]
+
     @property
     def has_content(self):
         return bool(self._queries)
 
-    @cached_property
-    def content(self):
+    @property
+    def nav_subtitle(self):
         stats = self.get_stats()
-        colors = contrasting_color_generator()
-        trace_colors = defaultdict(lambda: next(colors))
-        for query in stats.get("queries", []):
-            query["mql"] = query.get("mql", "")
-            query["params"] = True
-            query["form"] = SignedDataForm(
-                auto_id=None,
-                initial=SQLSelectForm(
-                    initial={
-                        "djdt_query_id": query["djdt_query_id"],
-                        "request_id": self.toolbar.request_id,
-                    }
-                ).initial,
-            )
-            query["stacktrace"] = render_stacktrace(query["stacktrace"])
-            query["trace_color"] = trace_colors[query["stacktrace"]]
-        return render_to_string(self.template, stats)
+        query_count = len(stats.get("queries", []))
+        return ngettext(
+            "%(query_count)d query in %(mql_time).3f ms",
+            "%(query_count)d queries in %(mql_time).3f ms",
+            query_count,
+        ) % {
+            "query_count": query_count,
+            "mql_time": stats.get("mql_time"),
+        }
+
+    def record(self, **kwargs):
+        kwargs["djdt_query_id"] = uuid.uuid4().hex
+        self._queries.append(kwargs)
+        alias = kwargs["alias"]
+        if alias not in self._databases:
+            self._databases[alias] = {
+                "time_spent": kwargs["duration"],
+                "num_queries": 1,
+            }
+        else:
+            self._databases[alias]["time_spent"] += kwargs["duration"]
+            self._databases[alias]["num_queries"] += 1
+        self._mql_time += kwargs["duration"]
+
+    @property
+    def title(self):
+        stats = self.get_stats()
+        databases = stats.get("databases", {}) if stats else {}
+        count = len(databases)
+        return ngettext(
+            "MQL queries from %(count)d connection",
+            "MQL queries from %(count)d connections",
+            count,
+        ) % {"count": count}

@@ -11,6 +11,31 @@ DEFAULT_MQL_WARNING_THRESHOLD = 500
 _patched_connections = weakref.WeakSet()
 
 
+class DebugToolbarWrapper(OperationDebugWrapper):
+    """Wrapper around pymongo Collection objects that logs queries
+    for display and re-execution."""
+
+    def __init__(self, db, collection, logger):
+        super().__init__(db, collection)
+        self.logger = logger
+
+    def log(self, op, duration, args, kwargs=None):
+        args_str = ", ".join(repr(arg) for arg in args)
+        operation = f"db.{self.collection_name}{op}({args_str})"
+        args_json = json_util.dumps(list(args))
+        if self.logger:
+            self.logger.record(
+                alias=self.db.alias,
+                mql=operation,
+                duration=duration,
+                stacktrace=get_stack_trace(),
+                template_info=get_template_info(),
+                mql_collection=self.collection_name.strip("."),
+                mql_operation=op.lstrip("."),
+                mql_args_json=args_json,
+            )
+
+
 class QueryParts:
     """Structured container for parsed query components."""
 
@@ -35,31 +60,6 @@ class QueryParts:
         self.collection_name = collection_name
         self.operation = operation
         self.args_list = args_list
-
-
-class DebugToolbarWrapper(OperationDebugWrapper):
-    """Wrapper around pymongo Collection objects that logs queries
-    for display and re-execution."""
-
-    def __init__(self, db, collection, logger):
-        super().__init__(db, collection)
-        self.logger = logger
-
-    def log(self, op, duration, args, kwargs=None):
-        args_str = ", ".join(repr(arg) for arg in args)
-        operation = f"db.{self.collection_name}{op}({args_str})"
-        args_json = json_util.dumps(list(args))
-        if self.logger:
-            self.logger.record(
-                alias=self.db.alias,
-                mql=operation,
-                duration=duration,
-                stacktrace=get_stack_trace(),
-                template_info=get_template_info(),
-                mql_collection=self.collection_name.strip("."),
-                mql_operation=op.lstrip("."),
-                mql_args_json=args_json,
-            )
 
 
 def format_mql_query(query):

@@ -17,41 +17,22 @@ from django_mongodb_extensions.mql_panel.utils import (
 
 
 class MQLBaseForm(SQLSelectForm):
-    def clean(self):
-        from .panel import MQLPanel
-
-        # Call forms.Form.clean() to bypass SQLSelectForm.clean() which has
-        # SQL-specific validation
-        cleaned_data = forms.Form.clean(self)
-        request_id = cleaned_data.get("request_id")
-        if not request_id:
-            raise ValidationError(_("Missing request ID."))
-        djdt_query_id = cleaned_data.get("djdt_query_id")
-        if not djdt_query_id:
-            raise ValidationError(_("Missing query ID."))
-        toolbar = DebugToolbar.fetch(request_id, panel_id=MQLPanel.panel_id)
-        if toolbar is None:
-            raise ValidationError(_("Data for this panel isn't available anymore."))
-        panel = toolbar.get_panel_by_id(MQLPanel.panel_id)
-        stats = panel.get_stats()
-        if not stats or "queries" not in stats:
-            raise ValidationError(_("Query data is not available."))
-        # Find query in stats using djdt_query_id
-        query = None
-        for _query in stats["queries"]:
-            if (
-                isinstance(_query, dict)
-                and _query.get("djdt_query_id") == djdt_query_id
-            ):
-                query = _query
-                break
-        if not query:
-            raise ValidationError(_("Invalid query ID."))
-        # Ensure query contains required keys
-        if not all(key in query for key in ("alias", "mql")):
-            raise ValidationError(_("Query data is incomplete."))
-        cleaned_data["query"] = query
-        return cleaned_data
+    def _execute_operation(self, operation_type, executor_func):
+        mql_string = ""
+        try:
+            parts = self._get_query_parts()
+            mql_string = parts.mql_string
+            return executor_func(
+                parts.db,
+                parts.collection,
+                parts.collection_name,
+                parts.operation,
+                parts.args_list,
+            )
+        except (ValueError, pymongo_errors.PyMongoError) as e:
+            # ValueError: unsupported operation or unserializable args.
+            # PyMongoError: any MongoDB driver error during execution.
+            return self._handle_operation_error(e, mql_string, operation_type)
 
     def _get_query_parts(self):
         query_dict = self.cleaned_data["query"]
@@ -134,22 +115,41 @@ class MQLBaseForm(SQLSelectForm):
         headers = [header]
         return rows, headers
 
-    def _execute_operation(self, operation_type, executor_func):
-        mql_string = ""
-        try:
-            parts = self._get_query_parts()
-            mql_string = parts.mql_string
-            return executor_func(
-                parts.db,
-                parts.collection,
-                parts.collection_name,
-                parts.operation,
-                parts.args_list,
-            )
-        except (ValueError, pymongo_errors.PyMongoError) as e:
-            # ValueError: unsupported operation or unserializable args.
-            # PyMongoError: any MongoDB driver error during execution.
-            return self._handle_operation_error(e, mql_string, operation_type)
+    def clean(self):
+        from .panel import MQLPanel
+
+        # Call forms.Form.clean() to bypass SQLSelectForm.clean() which has
+        # SQL-specific validation
+        cleaned_data = forms.Form.clean(self)
+        request_id = cleaned_data.get("request_id")
+        if not request_id:
+            raise ValidationError(_("Missing request ID."))
+        djdt_query_id = cleaned_data.get("djdt_query_id")
+        if not djdt_query_id:
+            raise ValidationError(_("Missing query ID."))
+        toolbar = DebugToolbar.fetch(request_id, panel_id=MQLPanel.panel_id)
+        if toolbar is None:
+            raise ValidationError(_("Data for this panel isn't available anymore."))
+        panel = toolbar.get_panel_by_id(MQLPanel.panel_id)
+        stats = panel.get_stats()
+        if not stats or "queries" not in stats:
+            raise ValidationError(_("Query data is not available."))
+        # Find query in stats using djdt_query_id
+        query = None
+        for _query in stats["queries"]:
+            if (
+                isinstance(_query, dict)
+                and _query.get("djdt_query_id") == djdt_query_id
+            ):
+                query = _query
+                break
+        if not query:
+            raise ValidationError(_("Invalid query ID."))
+        # Ensure query contains required keys
+        if not all(key in query for key in ("alias", "mql")):
+            raise ValidationError(_("Query data is incomplete."))
+        cleaned_data["query"] = query
+        return cleaned_data
 
 
 class MQLExplainForm(MQLBaseForm):
@@ -192,9 +192,6 @@ class MQLQueryForm(MQLBaseForm):
         else:
             raise ValueError(f"Unsupported read operation: {operation}")
         return self.convert_documents_to_table(result_docs)
-
-    def query(self):
-        return self._execute_operation("query", self._execute_query)
 
     def _format_cell_value(self, value):
         """Format a single cell value for table display."""
@@ -241,3 +238,6 @@ class MQLQueryForm(MQLBaseForm):
             row = [self._format_cell_value(doc.get(field)) for field in headers]
             rows.append(row)
         return rows, headers
+
+    def query(self):
+        return self._execute_operation("query", self._execute_query)
