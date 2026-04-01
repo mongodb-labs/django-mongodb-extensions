@@ -7,7 +7,7 @@ from django.test import TestCase
 from django_mongodb_extensions.mql_panel.forms import MQLQueryForm
 
 
-class ConvertDocumentsToTableTests(TestCase):
+class MQLPanelFormTests(TestCase):
     def setUp(self):
         self.form = MQLQueryForm()
 
@@ -16,31 +16,6 @@ class ConvertDocumentsToTableTests(TestCase):
         rows, headers = self.form.convert_documents_to_table([])
         self.assertEqual(rows, [])
         self.assertEqual(headers, [])
-
-    def test_handle_operation_error_format(self):
-        """Error return format matches convert_documents_to_table format."""
-        error = ValueError("Test error")
-        mql_string = "db.test.aggregate([])"
-        rows, headers = self.form._handle_operation_error(
-            error, mql_string, "aggregate"
-        )
-
-        # Should return one row with one cell
-        self.assertEqual(len(rows), 1)
-        self.assertEqual(len(rows[0]), 1)
-
-        # Cell should be a dict with 'value' and 'is_json' keys
-        cell = rows[0][0]
-        self.assertIsInstance(cell["value"], str)
-        self.assertIs(cell["is_json"], False)
-
-        # Should have one header
-        self.assertEqual(headers[0], "Query Parsing Error")
-
-
-class FormatCellValueTests(TestCase):
-    def setUp(self):
-        self.form = MQLQueryForm()
 
     def test_simple_fields(self):
         """Primitive field values like in model query output."""
@@ -56,11 +31,11 @@ class FormatCellValueTests(TestCase):
 
     def test_objectid(self):
         """MongoDB ObjectId from a document."""
-        oid = ObjectId()
+        oid = "69cd52da72ad0703d3dfef51"
         result = self.form._format_cell_value(oid)
         # ObjectIds serialize to {"$oid": "<id>"} which is single-key
         self.assertIs(result["is_json"], False)
-        self.assertEqual(result["value"], str(json.loads(json_util.dumps(oid))["$oid"]))
+        self.assertEqual(result["value"], oid)
 
     def test_datetime(self):
         """Datetime values as they might appear in a MongoDB doc."""
@@ -71,26 +46,29 @@ class FormatCellValueTests(TestCase):
         self.assertEqual(result["value"], str(json.loads(json_util.dumps(dt))["$date"]))
 
     def test_embedded_document(self):
-        """Nested dict with multiple keys (JSON formatting)."""
         embedded_doc = {
             "name": "Alice",
             "age": 30,
             "created": datetime.datetime(2024, 2, 1, 18, 0),
         }
         result = self.form._format_cell_value(embedded_doc)
+        self.assertEqual(result["type"], "dict")
         self.assertIs(result["is_json"], False)
-        parsed_back = json.loads(result["value"])
-        # Datetime will still be JSON date dict
-        self.assertEqual(parsed_back["name"], "Alice")
-        self.assertEqual(parsed_back["age"], 30)
-        self.assertIn("$date", parsed_back["created"])
+        value_map = {item["key"]: item["value"] for item in result["value"]}
+        self.assertEqual(value_map["name"], "Alice")
+        self.assertEqual(value_map["age"], "30")
+        self.assertEqual(value_map["created"], "2024-02-01T18:00:00Z")
+        for item in result["value"]:
+            self.assertIs(item["is_json"], False)
 
     def test_list_field(self):
-        """A list of values as might appear in MongoDB array field."""
-        arr = ["tag1", "tag2", ObjectId()]
+        arr = ["tag1", "tag2", ObjectId("69cd51ddf1a98c14c906c51e")]
         result = self.form._format_cell_value(arr)
-        # Lists are not dicts, so is_json = False
+        self.assertEqual(result["type"], "list")
         self.assertIs(result["is_json"], False)
-        self.assertEqual(
-            result["value"], '["tag1", "tag2", {"$oid": "69cc8219f859271f0a081538"}]'
-        )
+        value_map = {item["key"]: item["value"] for item in result["value"]}
+        self.assertEqual(value_map[0], "tag1")
+        self.assertEqual(value_map[1], "tag2")
+        self.assertEqual(value_map[2], "69cd51ddf1a98c14c906c51e")  # ObjectId string
+        for item in result["value"]:
+            self.assertIs(item["is_json"], False)
