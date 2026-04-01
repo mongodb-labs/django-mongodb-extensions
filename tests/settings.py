@@ -1,5 +1,10 @@
 import os
 
+
+def always_show_toolbar(request):
+    return True
+
+
 SECRET_KEY = "test-secret-key-for-django-mongodb-extensions"
 DEBUG = True
 INSTALLED_APPS = [
@@ -19,8 +24,11 @@ DATABASES = {
     }
 }
 DATABASE_ROUTERS = ["django_mongodb_backend.routers.MongoRouter"]
-# DebugToolbarMiddleware is not needed since tests exercise the panel directly.
 MIDDLEWARE = []
+# Use a callback that doesn't check DEBUG, since tests run with DEBUG=False.
+DEBUG_TOOLBAR_CONFIG = {
+    "SHOW_TOOLBAR_CALLBACK": always_show_toolbar,
+}
 ROOT_URLCONF = "tests.urls"
 USE_TZ = True
 STATIC_URL = "/static/"

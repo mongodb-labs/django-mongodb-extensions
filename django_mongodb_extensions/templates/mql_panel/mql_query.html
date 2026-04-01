@@ -34,21 +34,7 @@
                       <tr>
                         <th>{{ sub.key }}</th>
                         <td>
-                          {% if sub.type == "dict" %}
-                            <table class="subtable">
-                              {% for inner in sub.value %}
-                                <tr><th>{{ inner.key }}</th><td>{{ inner.value }}</td></tr>
-                              {% endfor %}
-                            </table>
-                          {% elif sub.type == "list" %}
-                            <ul>
-                              {% for inner in sub.value %}
-                                <li>{{ inner.value }}</li>
-                              {% endfor %}
-                            </ul>
-                          {% else %}
-                            {{ sub.value }}
-                          {% endif %}
+                          {% include 'mql_panel/subtype_value.html' %}
                         </td>
                       </tr>
                     {% endfor %}
@@ -57,21 +43,7 @@
                   <ul>
                     {% for sub in column.value %}
                       <li>
-                        {% if sub.type == "dict" %}
-                          <table class="subtable">
-                            {% for inner in sub.value %}
-                              <tr><th>{{ inner.key }}</th><td>{{ inner.value }}</td></tr>
-                            {% endfor %}
-                          </table>
-                        {% elif sub.type == "list" %}
-                          <ul>
-                            {% for inner in sub.value %}
-                              <li>{{ inner.value }}</li>
-                            {% endfor %}
-                          </ul>
-                        {% else %}
-                          {{ sub.value }}
-                        {% endif %}
+                        {% include 'mql_panel/subtype_value.html' %}
                       </li>
                     {% endfor %}
                   </ul>

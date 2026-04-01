@@ -1,0 +1,30 @@
+{% if sub.type == "dict" %}
+  <table class="subtable">
+    {% for inner in sub.value %}
+      <tr>
+        <th>{{ inner.key }}</th>
+        <td>
+          {% if inner.type %}
+            {% include "mql_panel/subtype_value.html" with sub=inner %}
+          {% else %}
+            {{ inner.value }}
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+{% elif sub.type == "list" %}
+  <ul>
+    {% for inner in sub.value %}
+      <li>
+        {% if inner.type %}
+          {% include "mql_panel/subtype_value.html" with sub=inner %}
+        {% else %}
+          {{ inner.value }}
+        {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  {{ sub.value }}
+{% endif %}

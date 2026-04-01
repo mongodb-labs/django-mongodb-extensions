@@ -110,7 +110,7 @@ class MQLQueryForm(MQLBaseForm):
 
     def _flatten_single_key_dicts(self, obj):
         if isinstance(obj, dict):
-            if len(obj) == 1:
+            if len(obj) == 1 and next(iter(obj)).startswith("$"):
                 only_value = next(iter(obj.values()))
                 return self._flatten_single_key_dicts(only_value)
             return {

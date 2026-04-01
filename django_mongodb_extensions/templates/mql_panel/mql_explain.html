@@ -1,6 +1,6 @@
 {% load i18n %}
 <div class="djDebugPanelTitle">
-  <h3>{% translate "MQL explained" %}</h3>
+  <h3>{% translate "Explain Results" %}</h3>
   <button type="button" class="djDebugClose">»</button>
 </div>
 <div class="djDebugPanelContent">
@@ -14,7 +14,7 @@
       <dd>{{ alias }}</dd>
     </dl>
     {% if result %}
-      <h4>{% translate "Explain Output" %}</h4>
+      <h4>{% translate "Explain Results" %}</h4>
       {% for row in result %}
         {% for item in row %}
           <pre style="margin: 0; white-space: pre-wrap; word-wrap: break-word;">{{ item }}</pre>

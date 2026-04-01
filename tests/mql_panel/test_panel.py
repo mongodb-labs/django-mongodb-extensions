@@ -5,7 +5,7 @@ from django.test import RequestFactory, TestCase, override_settings
 
 from django_mongodb_extensions.mql_panel import MQLPanel
 
-rf = RequestFactory()
+request_factory = RequestFactory()
 
 
 def mql_call():
@@ -18,7 +18,7 @@ class MQLPanelTests(TestCase):
 
     def setUp(self):
         self._get_response = lambda request: HttpResponse()
-        self.request = rf.get("/")
+        self.request = request_factory.get("/")
         self.toolbar = DebugToolbar(self.request, self.get_response)
         self.toolbar.stats = {}
         self.panel = self.toolbar.get_panel_by_id(self.panel_id)

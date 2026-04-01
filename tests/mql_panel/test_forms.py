@@ -1,7 +1,6 @@
 import datetime
-import json
 
-from bson import ObjectId, json_util
+from bson import ObjectId
 from django.test import TestCase
 
 from django_mongodb_extensions.mql_panel.forms import MQLQueryForm
@@ -12,13 +11,11 @@ class MQLPanelFormTests(TestCase):
         self.form = MQLQueryForm()
 
     def test_empty_documents(self):
-        """Empty document list returns empty rows and headers."""
         rows, headers = self.form.convert_documents_to_table([])
         self.assertEqual(rows, [])
         self.assertEqual(headers, [])
 
     def test_simple_fields(self):
-        """Primitive field values like in model query output."""
         cases = [
             ("username", {"value": "username", "is_json": False}),
             (42, {"value": "42", "is_json": False}),
@@ -30,20 +27,16 @@ class MQLPanelFormTests(TestCase):
                 self.assertEqual(self.form._format_cell_value(input_value), expected)
 
     def test_objectid(self):
-        """MongoDB ObjectId from a document."""
-        oid = "69cd52da72ad0703d3dfef51"
+        oid = ObjectId("69cd52da72ad0703d3dfef51")
         result = self.form._format_cell_value(oid)
-        # ObjectIds serialize to {"$oid": "<id>"} which is single-key
         self.assertIs(result["is_json"], False)
-        self.assertEqual(result["value"], oid)
+        self.assertEqual(result["value"], "69cd52da72ad0703d3dfef51")
 
     def test_datetime(self):
-        """Datetime values as they might appear in a MongoDB doc."""
         dt = datetime.datetime(2024, 1, 1, 12, 30)
         result = self.form._format_cell_value(dt)
-        # Datetimes serialize to {"$date": timestamp_ms} which is single-key dict
         self.assertIs(result["is_json"], False)
-        self.assertEqual(result["value"], str(json.loads(json_util.dumps(dt))["$date"]))
+        self.assertEqual(result["value"], "2024-01-01T12:30:00Z")
 
     def test_embedded_document(self):
         embedded_doc = {
@@ -69,6 +62,71 @@ class MQLPanelFormTests(TestCase):
         value_map = {item["key"]: item["value"] for item in result["value"]}
         self.assertEqual(value_map[0], "tag1")
         self.assertEqual(value_map[1], "tag2")
-        self.assertEqual(value_map[2], "69cd51ddf1a98c14c906c51e")  # ObjectId string
+        self.assertEqual(value_map[2], "69cd51ddf1a98c14c906c51e")
         for item in result["value"]:
             self.assertIs(item["is_json"], False)
+
+    def test_list_of_embedded_dicts(self):
+        tags = [
+            {"name": "cool_tag", "number": 42},
+            {"name": "other_tag", "number": 7},
+        ]
+        result = self.form._format_cell_value(tags)
+        self.assertEqual(result["type"], "list")
+        self.assertIs(result["is_json"], False)
+        for item in result["value"]:
+            self.assertEqual(item["type"], "dict")
+            self.assertIs(item["is_json"], False)
+            inner_map = {inner["key"]: inner["value"] for inner in item["value"]}
+            self.assertIn("name", inner_map)
+            self.assertIn("number", inner_map)
+
+    def test_dict_with_nested_list_of_dicts(self):
+        address = {
+            "street": "123 Main St",
+            "tags": [
+                {"name": "cool_tag", "number": 42},
+            ],
+        }
+        result = self.form._format_cell_value(address)
+        self.assertEqual(result["type"], "dict")
+        self.assertIs(result["is_json"], False)
+        items_by_key = {item["key"]: item for item in result["value"]}
+        self.assertEqual(items_by_key["street"]["value"], "123 Main St")
+        tags_item = items_by_key["tags"]
+        self.assertEqual(tags_item["type"], "list")
+        self.assertIs(tags_item["is_json"], False)
+        first_tag = tags_item["value"][0]
+        self.assertEqual(first_tag["type"], "dict")
+        inner_map = {inner["key"]: inner["value"] for inner in first_tag["value"]}
+        self.assertEqual(inner_map["name"], "cool_tag")
+        self.assertEqual(inner_map["number"], "42")
+
+    def test_deeply_nested_embedded_document(self):
+        address = {
+            "street": "123 Main St",
+            "tags": [
+                {
+                    "name": "cool_tag",
+                    "number": 42,
+                    "person": {"name": "Alice"},
+                }
+            ],
+        }
+        result = self.form._format_cell_value(address)
+        self.assertEqual(result["type"], "dict")
+        address_by_key = {item["key"]: item for item in result["value"]}
+        tags_item = address_by_key["tags"]
+        self.assertEqual(tags_item["type"], "list")
+        self.assertIs(tags_item["is_json"], False)
+        first_tag = tags_item["value"][0]
+        self.assertEqual(first_tag["type"], "dict")
+        self.assertIs(first_tag["is_json"], False)
+        tag_by_key = {inner["key"]: inner for inner in first_tag["value"]}
+        self.assertEqual(tag_by_key["name"]["value"], "cool_tag")
+        self.assertEqual(tag_by_key["number"]["value"], "42")
+        person_item = tag_by_key["person"]
+        self.assertEqual(person_item["type"], "dict")
+        self.assertIs(person_item["is_json"], False)
+        person_map = {inner["key"]: inner["value"] for inner in person_item["value"]}
+        self.assertEqual(person_map["name"], "Alice")

@@ -81,17 +81,20 @@ class MQLPanel(SQLPanel):
 
     def disable_instrumentation(self):
         for connection in connections.all():
-            if hasattr(connection, "_djdt_logger"):
-                connection._djdt_logger = None
+            if hasattr(connection, "_mql_djdt_logger"):
+                connection._mql_djdt_logger = None
 
     def enable_instrumentation(self):
         # Only patch MongoDB connections (those with get_collection method).
         # This allows the panel to work in multi-database setups with
         # both MongoDB and relational databases.
+        #
+        # Use _mql_djdt_logger (not _djdt_logger) to avoid conflicting with the
+        # SQL panel, which sets _djdt_logger on all connections regardless of type.
         for connection in connections.all():
             if hasattr(connection, "get_collection"):
                 patch_get_collection(connection)
-                connection._djdt_logger = self
+                connection._mql_djdt_logger = self
 
     def generate_stats(self, request, response):
         duplicate_query_groups = defaultdict(list)

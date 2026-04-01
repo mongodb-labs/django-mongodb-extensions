@@ -85,7 +85,9 @@ def patch_get_collection(connection):
         connection._original_get_collection = connection.get_collection
 
     def get_collection(self, name, **kwargs):
-        logger = getattr(self, "_djdt_logger", None)
+        # Use _mql_djdt_logger (not _djdt_logger) to avoid conflicting with the
+        # SQL panel, which sets _djdt_logger on all connections.
+        logger = getattr(self, "_mql_djdt_logger", None)
         if logger:
             collection = self._original_get_collection(name, **kwargs)
             return DebugToolbarWrapper(self, collection, logger)
