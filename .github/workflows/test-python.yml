@@ -86,7 +86,7 @@ jobs:
       with:
         mongodb-version: ${{ env.MIN_MONGODB }}
         mongodb-replica-set: test-rs
-    - name: Run unit tests with minimum dependency versions
+    - name: Run unit tests with minimum Python/MongoDB versions
       run: |
-        uv sync --python=${MIN_PYTHON} --resolution=lowest-direct
+        uv sync --python=${MIN_PYTHON} --resolution=highest
         just test

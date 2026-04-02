@@ -20,4 +20,3 @@ repos:
   hooks:
     - id: djhtml
       entry: djhtml --tabwidth 2
-      files: django_mongodb_extensions/templates/debug_toolbar/panels/mql.html
