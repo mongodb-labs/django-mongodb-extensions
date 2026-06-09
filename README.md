@@ -2,6 +2,8 @@
 
 Extensions for Django MongoDB Backend
 
+[![Documentation](https://readthedocs.org/projects/django-mongodb-extensions/badge/?version=latest)](https://django-mongodb-extensions.readthedocs.io/en/latest/)
+
 ## Installation
 
 ```bash

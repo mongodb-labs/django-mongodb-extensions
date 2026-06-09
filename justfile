@@ -14,3 +14,6 @@ coverage-html:
 
 lint:
     uvx pre-commit run --all-files --hook-stage manual
+
+docs:
+    cd docs && uv run --extra docs make html
