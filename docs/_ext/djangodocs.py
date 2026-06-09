@@ -18,3 +18,4 @@ def setup(app):
         indextemplate="pair: %s; setting",
     )
     app.add_directive("django-admin-option", Cmdoption)
+    return {"parallel_read_safe": True}

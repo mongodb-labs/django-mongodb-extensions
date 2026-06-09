@@ -36,7 +36,6 @@ intersphinx_mapping = {
 }
 
 html_theme = "furo"
-html_static_path = ["_static"]
 
 copybutton_prompt_text = r">>> |\.\.\. |\$ "
 copybutton_prompt_is_regexp = True
