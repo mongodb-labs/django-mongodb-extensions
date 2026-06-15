@@ -2,12 +2,10 @@ default:
     echo 'Hello, world!'
 
 test:
-    uv run --extra test --with django-mongodb-backend django-admin test -v 2 \
-        --settings=tests.settings
+    uv run --group test django-admin test -v 2 --settings=tests.settings
 
 test-coverage:
-    uv run --extra test --with django-mongodb-backend \
-        coverage run -m django test -v 2 --settings=tests.settings
+    uv run --group test coverage run -m django test -v 2 --settings=tests.settings
 
 coverage-html:
     coverage html
@@ -15,5 +13,11 @@ coverage-html:
 lint:
     uvx pre-commit run --all-files --hook-stage manual
 
+typing:
+    uv run --group typing pyright
+
+pre-commit:
+    uvx pre-commit run --all-files --hook-stage manual
+
 docs:
-    cd docs && uv run --extra docs make html
+    cd docs && uv run --group docs sphinx-build -n -b html . _build/html

@@ -11,20 +11,37 @@ license = { file="LICENSE" }
 requires-python = ">=3.10"
 
 [project.optional-dependencies]
-docs = [
-    "furo",
-    "sphinx>=7",
-    "sphinx-copybutton",
-]
-test = [
-    "coverage",
-    "django-debug-toolbar",
+mql_panel = [
+    "django-debug-toolbar>=5.1",
 ]
 
 [project.urls]
 Documentation = "https://django-mongodb-extensions.readthedocs.io"
 Source = "https://github.com/mongodb-labs/django-mongodb-extensions"
 Tracker = "https://github.com/mongodb-labs/django-mongodb-extensions/issues"
+
+[dependency-groups]
+docs = [
+    "django>=5.2",
+    "furo",
+    "sphinx>=7",
+    "sphinx-copybutton",
+]
+test = [
+    "coverage",
+    "django-mongodb-backend>=5.2",
+    "django-mongodb-extensions[mql_panel]",
+]
+typing = [
+    "django-stubs>=5.2",
+    "pyright",
+    {include-group = "test"},
+]
+
+[tool.pyright]
+include = ["django_mongodb_extensions"]
+venvPath = "."
+venv = ".venv"
 
 [tool.ruff.lint]
 select = ["I", "F"]
