@@ -9,6 +9,11 @@ description = "Extensions for Django MongoDB Backend"
 readme = "README.md"
 license = { file="LICENSE" }
 requires-python = ">=3.10"
+classifiers = [
+    "Framework :: Django",
+    "Framework :: Django :: 5.2",
+    "Framework :: Django :: 6.0",
+]
 
 [project.optional-dependencies]
 mql_panel = [
