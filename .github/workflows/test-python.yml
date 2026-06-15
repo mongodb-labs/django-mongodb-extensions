@@ -20,8 +20,6 @@ env:
   MIN_PYTHON: "3.10"
   MIN_MONGODB: "6.0"
   MAX_MONGODB: "8.0"
-  # Current Django LTS series; update when the LTS changes.
-  LTS_DJANGO_MONGODB_BACKEND: "5.2"
 
 jobs:
   docs:
@@ -63,7 +61,7 @@ jobs:
       matrix:
         os: ["ubuntu-latest"]
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
-        django-mongodb-backend: ["5.2", "6.0"]  # 5.2 is the current LTS
+        django-mongodb-backend: ["5.2", "6.0"]
         exclude:
           # django-mongodb-backend 6.0 requires Python 3.12+
           - django-mongodb-backend: "6.0"

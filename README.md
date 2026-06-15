@@ -4,16 +4,14 @@ Extensions for Django MongoDB Backend
 
 [![Documentation](https://readthedocs.org/projects/django-mongodb-extensions/badge/?version=latest)](https://django-mongodb-extensions.readthedocs.io/en/latest/)
 
-Supports the current Django
-[long-term support (LTS) release](https://www.djangoproject.com/download/#supported-versions)
-and its supported Python versions.
-
 ## Version Support
 
-| Python | Django | Django MongoDB Backend | Django Debug Toolbar |
-|--------|--------|----------------------|---------------------|
-| 3.10 – 3.14 | 5.2 LTS | 5.2.x | ≥5.1 |
-| 3.12 – 3.14 | 6.0 | 6.0.x | ≥5.1 |
+| Django / Django MongoDB Backend | Django Debug Toolbar |
+|---------------------------------|---------------------|
+| 5.2 | ≥5.1 |
+| 6.0 | ≥6.2 |
+
+Django version support follows [Django's supported versions policy](https://www.djangoproject.com/download/#supported-versions).
 
 ## Installation
 

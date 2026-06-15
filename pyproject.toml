@@ -29,7 +29,6 @@ docs = [
 ]
 test = [
     "coverage",
-    # 5.2 is the current Django LTS series; update this and the test-lts justfile target when the LTS changes.
     "django-mongodb-backend>=5.2",
     "django-mongodb-extensions[mql_panel]",
 ]
