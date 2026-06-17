@@ -1,3 +1,4 @@
 __pycache__
 uv.lock
 .coverage
+docs/_build
