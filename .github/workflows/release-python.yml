@@ -41,16 +41,16 @@ jobs:
     outputs:
       version: ${{ steps.pre-publish.outputs.version }}
     steps:
-      - uses: mongodb-labs/drivers-github-tools/secure-checkout@1a2d86bd5fed4b0090453bcd510e4c2ba3b92356  # v3.0.4
+      - uses: mongodb-labs/drivers-github-tools/secure-checkout@f137fdd28483af14ebf466ebc5aa789fbf867218  # v3.0.5
         with:
           app_id: ${{ vars.APP_ID }}
           private_key: ${{ secrets.APP_PRIVATE_KEY }}
-      - uses: mongodb-labs/drivers-github-tools/setup@1a2d86bd5fed4b0090453bcd510e4c2ba3b92356  # v3.0.4
+      - uses: mongodb-labs/drivers-github-tools/setup@f137fdd28483af14ebf466ebc5aa789fbf867218  # v3.0.5
         with:
           aws_role_arn: ${{ secrets.AWS_ROLE_ARN }}
           aws_region_name: ${{ vars.AWS_REGION_NAME }}
           aws_secret_id: ${{ secrets.AWS_SECRET_ID }}
-      - uses: mongodb-labs/drivers-github-tools/python-labs/pre-publish@1a2d86bd5fed4b0090453bcd510e4c2ba3b92356  # v3.0.4
+      - uses: mongodb-labs/drivers-github-tools/python-labs/pre-publish@f137fdd28483af14ebf466ebc5aa789fbf867218  # v3.0.5
         id: pre-publish
         with:
           version: ${{ env.VERSION }}
@@ -81,7 +81,7 @@ jobs:
         path: dist/
     - name: Publish distribution 📦 to PyPI
       if: startsWith(env.DRY_RUN, 'false')
-      uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247 # v1.14.1
+      uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
 
   post-publish:
     needs: [publish]
@@ -93,16 +93,16 @@ jobs:
       attestations: write
       security-events: write
     steps:
-      - uses: mongodb-labs/drivers-github-tools/secure-checkout@1a2d86bd5fed4b0090453bcd510e4c2ba3b92356  # v3.0.4
+      - uses: mongodb-labs/drivers-github-tools/secure-checkout@f137fdd28483af14ebf466ebc5aa789fbf867218  # v3.0.5
         with:
           app_id: ${{ vars.APP_ID }}
           private_key: ${{ secrets.APP_PRIVATE_KEY }}
-      - uses: mongodb-labs/drivers-github-tools/setup@1a2d86bd5fed4b0090453bcd510e4c2ba3b92356  # v3.0.4
+      - uses: mongodb-labs/drivers-github-tools/setup@f137fdd28483af14ebf466ebc5aa789fbf867218  # v3.0.5
         with:
           aws_role_arn: ${{ secrets.AWS_ROLE_ARN }}
           aws_region_name: ${{ vars.AWS_REGION_NAME }}
           aws_secret_id: ${{ secrets.AWS_SECRET_ID }}
-      - uses: mongodb-labs/drivers-github-tools/python-labs/post-publish@1a2d86bd5fed4b0090453bcd510e4c2ba3b92356  # v3.0.4
+      - uses: mongodb-labs/drivers-github-tools/python-labs/post-publish@f137fdd28483af14ebf466ebc5aa789fbf867218  # v3.0.5
         with:
           version: ${{ env.VERSION }}
           version_bump_script: ./.github/scripts/bump-version.sh
